@@ -42,7 +42,7 @@ fn parse_power(input: &str) -> IResult<&str, Expr> {
     if let Some(expr_last) = exprs.pop() {
         exprs.insert(0, expr1);
         Ok((input, exprs.iter().cloned().rfold(expr_last, |ex1, ex2| {
-            Expr::Pow(Box::new(ex2), Box::new(ex1))
+            Expr::Func("pow", vec![ex2, ex1])
         })))
     } else {
         Ok((input, expr1))
@@ -53,7 +53,7 @@ fn parse_unary(input: &str) -> IResult<&str, Expr> {
     let (input, ms) = preceded(space0, many0(char('-')))(input)?;
     let (input, expr) = terminated(parse_primary, space0)(input)?;
     Ok((input, ms.iter().rfold(expr, |ex, _| {
-        Expr::Neg(Box::new(ex))
+        Expr::Func("neg", vec![ex])
     })))
 }
 
@@ -76,10 +76,10 @@ fn parse_number(parsed_num: &str) -> Expr {
 
 fn create_binop(e1: Expr, (op, e2): (char, Expr)) -> Expr {
     match op {
-        '+' => Expr::Add(Box::new(e1), Box::new(e2)),
-        '-' => Expr::Sub(Box::new(e1), Box::new(e2)),
-        '*' => Expr::Mul(Box::new(e1), Box::new(e2)),
-        '/' => Expr::Div(Box::new(e1), Box::new(e2)),
+        '+' => Expr::Func("add", vec![e1, e2]),
+        '-' => Expr::Func("sub", vec![e1, e2]),
+        '*' => Expr::Func("mul", vec![e1, e2]),
+        '/' => Expr::Func("div", vec![e1, e2]),
         _ => unreachable!()
     }
 }
