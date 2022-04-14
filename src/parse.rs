@@ -3,14 +3,14 @@ use std::str::FromStr;
 use nom::IResult;
 use nom::branch::alt;
 use nom::character::complete::{char, digit1, space0};
-use nom::combinator::map;
+use nom::combinator::{all_consuming, map};
 use nom::multi::{fold_many0, many0};
 use nom::sequence::{delimited, preceded, terminated, tuple};
 
 use crate::expr::Expr;
 
 pub fn parse(input: &str) -> IResult<&str, Expr> {
-    parse_expr(input)
+    all_consuming(parse_expr)(input)
 }
 
 fn parse_expr(input: &str) -> IResult<&str, Expr> {
