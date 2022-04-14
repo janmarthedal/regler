@@ -2,12 +2,19 @@ use std::str::FromStr;
 
 use nom::IResult;
 use nom::branch::alt;
-use nom::character::complete::{char, digit1, space0};
+use nom::character::complete::{alpha1, char, digit1, space0};
 use nom::combinator::{all_consuming, map};
 use nom::multi::{fold_many0, many0};
 use nom::sequence::{delimited, preceded, terminated, tuple};
 
 use crate::expr::Expr;
+
+const POW: &str = "pow";
+const NEG: &str = "neg";
+const ADD: &str = "add";
+const SUB: &str = "sub";
+const MUL: &str = "mul";
+const DIV: &str = "div";
 
 pub fn parse(input: &str) -> IResult<&str, Expr> {
     all_consuming(parse_expr)(input)
@@ -42,7 +49,7 @@ fn parse_power(input: &str) -> IResult<&str, Expr> {
     if let Some(expr_last) = exprs.pop() {
         exprs.insert(0, expr1);
         Ok((input, exprs.iter().cloned().rfold(expr_last, |ex1, ex2| {
-            Expr::Func("pow", vec![ex2, ex1])
+            Expr::Func(POW.to_string(), vec![ex2, ex1])
         })))
     } else {
         Ok((input, expr1))
@@ -53,7 +60,7 @@ fn parse_unary(input: &str) -> IResult<&str, Expr> {
     let (input, ms) = preceded(space0, many0(char('-')))(input)?;
     let (input, expr) = terminated(parse_primary, space0)(input)?;
     Ok((input, ms.iter().rfold(expr, |ex, _| {
-        Expr::Func("neg", vec![ex])
+        Expr::Func(NEG.to_string(), vec![ex])
     })))
 }
 
@@ -61,8 +68,23 @@ fn parse_unary(input: &str) -> IResult<&str, Expr> {
 fn parse_primary(input: &str) -> IResult<&str, Expr> {
     alt((
         delimited(char('('), parse_expr, char(')')),
+        parse_function,
         parse_num
     ))(input)
+}
+
+fn parse_function(input: &str) -> IResult<&str, Expr> {
+    let (input, name) = alpha1(input)?;
+    let (input, exprs) = delimited(char('('), parse_expr_list, char(')'))(input)?;
+    Ok((input, Expr::Func(name.to_string(), exprs)))
+}
+
+fn parse_expr_list(input: &str) -> IResult<&str, Vec<Expr>> {
+    let (input, expr1) = parse_expr(input)?;
+    let (input, exprs) = many0(preceded(char(','), parse_expr))(input)?;
+    let mut exprs = exprs;
+    exprs.insert(0, expr1);
+    Ok((input, exprs))
 }
 
 fn parse_num(input: &str) -> IResult<&str, Expr> {
@@ -76,10 +98,10 @@ fn parse_number(parsed_num: &str) -> Expr {
 
 fn create_binop(e1: Expr, (op, e2): (char, Expr)) -> Expr {
     match op {
-        '+' => Expr::Func("add", vec![e1, e2]),
-        '-' => Expr::Func("sub", vec![e1, e2]),
-        '*' => Expr::Func("mul", vec![e1, e2]),
-        '/' => Expr::Func("div", vec![e1, e2]),
+        '+' => Expr::Func(ADD.to_string(), vec![e1, e2]),
+        '-' => Expr::Func(SUB.to_string(), vec![e1, e2]),
+        '*' => Expr::Func(MUL.to_string(), vec![e1, e2]),
+        '/' => Expr::Func(DIV.to_string(), vec![e1, e2]),
         _ => unreachable!()
     }
 }
