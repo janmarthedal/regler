@@ -1,5 +1,5 @@
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
+pub enum PExpr {
     Num(i64),
-    Func(String, Vec<Expr>),
+    Func(String, Vec<PExpr>),
 }

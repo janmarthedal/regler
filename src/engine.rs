@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::builtin;
-use crate::expr::Expr;
+use crate::pexpr::PExpr;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Symbol {
@@ -64,10 +64,10 @@ impl Ord for Node {
     }
 }
 
-fn read_expr_visit(expr: &Expr, symbols: &HashMap<String, Symbol>) -> Node {
+fn read_expr_visit(expr: &PExpr, symbols: &HashMap<String, Symbol>) -> Node {
     match expr {
-        Expr::Num(n) => Node::Num(*n),
-        Expr::Func(name, exprs) => {
+        PExpr::Num(n) => Node::Num(*n),
+        PExpr::Func(name, exprs) => {
             let symbol = symbols.get(name).unwrap();
             let child_nodes: Vec<_> = exprs
                 .iter()
@@ -171,7 +171,7 @@ impl Engine {
         );
     }
 
-    pub fn read_expr(&self, expr: &Expr) -> Node {
+    pub fn read_expr(&self, expr: &PExpr) -> Node {
         read_expr_visit(expr, &self.symbols)
     }
 
