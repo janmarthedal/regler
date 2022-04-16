@@ -6,11 +6,7 @@ use crate::symbols::{FuncAttr, Symbols};
 #[derive(Clone)]
 enum Node {
     Num(i64),
-    Func {
-        name: String,
-        attrs: FuncAttr,
-        children: Vec<usize>,
-    },
+    Func(String, FuncAttr, Vec<usize>),
 }
 
 #[derive(Clone)]
@@ -37,11 +33,7 @@ impl NodeContainer {
 
     fn make_func(&mut self, name: String, attrs: FuncAttr, children: Vec<usize>) -> usize {
         let i = self.nodes.len();
-        let node = Node::Func {
-            name,
-            attrs,
-            children,
-        };
+        let node = Node::Func(name, attrs, children);
         self.nodes.push(node);
         i
     }
@@ -62,11 +54,7 @@ impl NodeContainer {
         let node = &self.nodes[node_index];
         match node {
             Node::Num(n) => println!("{}", n),
-            Node::Func {
-                name,
-                attrs: _,
-                children,
-            } => {
+            Node::Func(name, _, children) => {
                 println!("{}", name);
                 for child_index in children {
                     self.print_expr(*child_index, indent + 4);
@@ -80,34 +68,9 @@ impl NodeContainer {
         let node2 = &self.nodes[i2];
         match (node1, node2) {
             (Node::Num(i1), Node::Num(i2)) => i1.cmp(i2),
-            (
-                Node::Num(_),
-                Node::Func {
-                    name: _,
-                    attrs: _,
-                    children: _,
-                },
-            ) => Ordering::Greater,
-            (
-                Node::Func {
-                    name: _,
-                    attrs: _,
-                    children: _,
-                },
-                Node::Num(_),
-            ) => Ordering::Less,
-            (
-                Node::Func {
-                    name: n1,
-                    attrs: a1,
-                    children: c1,
-                },
-                Node::Func {
-                    name: n2,
-                    attrs: a2,
-                    children: c2,
-                },
-            ) => {
+            (Node::Num(_), Node::Func(_, _, _)) => Ordering::Greater,
+            (Node::Func(_, _, _), Node::Num(_)) => Ordering::Less,
+            (Node::Func(n1, a1, c1), Node::Func(n2, a2, c2)) => {
                 let c = n1.cmp(n2);
                 if c != Ordering::Equal {
                     return c;
@@ -132,27 +95,18 @@ impl NodeContainer {
     }
 
     fn normalize(&mut self, node_index: usize) -> usize {
-        let node = &self.nodes[node_index];
+        let node = self.nodes[node_index].clone();
         match node {
             Node::Num(_) => node_index,
-            Node::Func {
-                name,
-                attrs,
-                children,
-            } => {
-                let name = name.clone();
-                let attrs = *attrs;
-                let children = children.clone();
+            Node::Func(name, attrs, children) => {
                 let mut new_children: Vec<usize> = Vec::with_capacity(children.len());
                 for child_index in children {
                     let new_child_index = self.normalize(child_index);
                     let child = &self.nodes[new_child_index];
                     match child {
-                        Node::Func {
-                            name: child_name,
-                            attrs: _,
-                            children: child_children,
-                        } if attrs.is_associative() && name == *child_name => {
+                        Node::Func(child_name, _, child_children)
+                            if attrs.is_associative() && name == *child_name =>
+                        {
                             new_children.extend(child_children)
                         }
                         _ => new_children.push(new_child_index),
