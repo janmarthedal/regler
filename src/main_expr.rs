@@ -94,6 +94,32 @@ impl NodeContainer {
         }
     }
 
+    fn inv_conversion(
+        &mut self,
+        node_index: usize,
+        from_op: &String,
+        to_op: &String,
+        inv_op: &String,
+        symbols: &Symbols,
+    ) -> usize {
+        let node = self.nodes[node_index].clone();
+        match node {
+            Node::Func(name, _, children) if &name == from_op && children.len() == 2 => {
+                let to_attrs = symbols.get_function(&to_op).unwrap();
+                let inv_attrs = symbols.get_function(&inv_op).unwrap();
+                let new_children: Vec<_> = children
+                    .iter()
+                    .map(|child_index| {
+                        self.inv_conversion(*child_index, from_op, to_op, inv_op, symbols)
+                    })
+                    .collect();
+                let right_child = self.make_func(inv_op.clone(), inv_attrs.clone(), vec![new_children[1]]);
+                self.make_func(to_op.clone(), to_attrs.clone(), vec![new_children[0], right_child])
+            }
+            _ => node_index,
+        }
+    }
+
     fn normalize(&mut self, node_index: usize) -> usize {
         let node = self.nodes[node_index].clone();
         match node {
@@ -130,6 +156,10 @@ impl MainExpr {
 
     pub fn print_expr(&self) {
         self.nodes.print_expr(self.root, 0)
+    }
+
+    pub fn inv_conversion(&mut self, from_op: &String, to_op: &String, inv_op: &String, symbols: &Symbols) {
+        self.root = self.nodes.inv_conversion(self.root, from_op, to_op, inv_op, symbols);
     }
 
     pub fn normalize(&mut self) {
