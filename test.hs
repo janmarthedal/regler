@@ -3,22 +3,28 @@
 
 import Parsing ( Parser, (<|>), natural, symbol, parse )
 
-data Tree = Sum Tree Tree | Prod Tree Tree | Integer Int
+data Tree = Sum Tree Tree | Prod Tree Tree | Nat Int
             deriving Show
 
 expr :: Parser Tree
 expr = do t <- term
-          do symbol "+"
-             e <- expr
-             return (Sum t e)
-           <|> return t
+          expr' t
+
+expr' :: Tree -> Parser Tree
+expr' t1 = do symbol "+"
+              t2 <- term
+              expr' (Sum t1 t2)
+            <|> return t1
 
 term :: Parser Tree
 term = do f <- factor
-          do symbol "*"
-             t <- term
-             return (Prod f t)
-           <|> return f
+          term' f
+
+term' :: Tree -> Parser Tree
+term' f1 = do symbol "*"
+              f2 <- factor
+              term' (Prod f1 f2)
+            <|> return f1
 
 factor :: Parser Tree
 factor = do symbol "("
@@ -26,7 +32,7 @@ factor = do symbol "("
             symbol ")"
             return e
           <|> do n <- natural
-                 return (Integer n)
+                 return (Nat n)
 
 eval :: String -> Tree
 eval xs = case parse expr xs of
