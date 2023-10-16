@@ -3,7 +3,7 @@
 
 import Parsing ( Parser, (<|>), natural, symbol, parse )
 
-data Tree = Sum Tree Tree | Sub Tree Tree | Prod Tree Tree | Div Tree Tree | Nat Int
+data Tree = Sum Tree Tree | Sub Tree Tree | Prod Tree Tree | Div Tree Tree | Neg Tree | Nat Int
             deriving Show
 
 expr :: Parser Tree
@@ -20,17 +20,23 @@ expr' t1 = do symbol "+"
                  <|> return t1
 
 term :: Parser Tree
-term = do f <- factor
+term = do f <- unary
           term' f
 
 term' :: Tree -> Parser Tree
 term' f1 = do symbol "*"
-              f2 <- factor
+              f2 <- unary
               term' (Prod f1 f2)
             <|> do symbol "/"
-                   f2 <- factor
+                   f2 <- unary
                    term' (Div f1 f2)
                  <|> return f1
+
+unary :: Parser Tree
+unary = do symbol "-"
+           f <- unary
+           return (Neg f)
+         <|> factor
 
 factor :: Parser Tree
 factor = do symbol "("
