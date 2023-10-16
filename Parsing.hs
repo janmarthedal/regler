@@ -1,5 +1,8 @@
 -- Functional parsing library from chapter 13 of Programming in Haskell,
 -- Graham Hutton, Cambridge University Press, 2016.
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
+{-# HLINT ignore "Use const" #-}
 
 module Parsing (module Parsing, module Control.Applicative) where
 
@@ -8,49 +11,49 @@ import Data.Char
 
 -- Basic definitions
 
-newtype Parser a = P (String -> [(a,String)])
+newtype Parser a = P (String -> Maybe (a,String) )
 
-parse :: Parser a -> String -> [(a,String)]
-parse (P p) inp = p inp
+parse :: Parser a -> String -> Maybe (a,String)
+parse (P p) = p
 
 item :: Parser Char
 item = P (\inp -> case inp of
-                     []     -> []
-                     (x:xs) -> [(x,xs)])
+                     []     -> Nothing
+                     (x:xs) -> Just (x,xs))
 
 -- Sequencing parsers
 
 instance Functor Parser where
    -- fmap :: (a -> b) -> Parser a -> Parser b
    fmap g p = P (\inp -> case parse p inp of
-                            []        -> []
-                            [(v,out)] -> [(g v, out)])
+                            Nothing      -> Nothing
+                            Just (v,out) -> Just (g v,out) )
 
 instance Applicative Parser where
    -- pure :: a -> Parser a
-   pure v = P (\inp -> [(v,inp)])
+   pure v = P (\inp -> Just (v,inp) )
 
    -- <*> :: Parser (a -> b) -> Parser a -> Parser b
    pg <*> px = P (\inp -> case parse pg inp of
-                             []        -> []
-                             [(g,out)] -> parse (fmap g px) out)
+                             Nothing      -> Nothing
+                             Just (g,out) -> parse (fmap g px) out)
 
 instance Monad Parser where
    -- (>>=) :: Parser a -> (a -> Parser b) -> Parser b
    p >>= f = P (\inp -> case parse p inp of
-                           []        -> []
-                           [(v,out)] -> parse (f v) out)
+                           Nothing      -> Nothing
+                           Just (v,out) -> parse (f v) out)
 
 -- Making choices
 
 instance Alternative Parser where
    -- empty :: Parser a
-   empty = P (\inp -> [])
+   empty = P (\inp -> Nothing)
 
    -- (<|>) :: Parser a -> Parser a -> Parser a
    p <|> q = P (\inp -> case parse p inp of
-                           []        -> parse q inp
-                           [(v,out)] -> [(v,out)])
+                           Nothing      -> parse q inp
+                           Just (v,out) -> Just (v,out) )
 
 -- Derived primitives
 

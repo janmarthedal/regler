@@ -23,6 +23,6 @@ factor = do symbol "("
 
 eval :: String -> Int
 eval xs = case parse expr xs of
-            [(n, [])]  -> n
-            [(_, out)] -> error ("Unused input " ++ out)
-            []         -> error "Invalid input"
+            Just (n, [])  -> n
+            Just (_, out) -> error ("Unused input " ++ out)
+            Nothing       -> error "Invalid input"
