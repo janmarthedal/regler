@@ -51,3 +51,26 @@ build xs = case parse expr xs of
              Just (n, [])  -> n
              Just (_, out) -> error ("Unused input " ++ out)
              Nothing       -> error "Invalid input"
+
+showExpr :: Tree -> String
+showExpr t = showExprEq t 0
+
+showExprEq :: Tree -> Int -> String
+showExprEq (Sum t1 t2) n = parenCheckEq n 1 (showExprEq t1 1 ++ "+" ++ showExprEq t2 1)
+showExprEq (Sub t1 t2) n = parenCheckEq n 1 (showExprEq t1 1 ++ "-" ++ showExprLt t2 1)
+showExprEq (Prod t1 t2) n = parenCheckEq n 2 (showExprEq t1 2 ++ "*" ++ showExprEq t2 2)
+showExprEq (Div t1 t2) n = parenCheckEq n 2 (showExprEq t1 2 ++ "/" ++ showExprLt t2 2)
+showExprEq (Nat n) _ = show n
+
+parenCheckEq :: Int -> Int -> String -> String
+parenCheckEq n m xs = if n <= m then xs else "(" ++ xs ++ ")"
+
+showExprLt :: Tree -> Int -> String
+showExprLt (Sum t1 t2) n = parenCheckLt n 1 (showExprEq t1 1 ++ "+" ++ showExprEq t2 1)
+showExprLt (Sub t1 t2) n = parenCheckLt n 1 (showExprEq t1 1 ++ "-" ++ showExprLt t2 1)
+showExprLt (Prod t1 t2) n = parenCheckLt n 2 (showExprEq t1 2 ++ "*" ++ showExprEq t2 2)
+showExprLt (Div t1 t2) n = parenCheckLt n 2 (showExprEq t1 2 ++ "/" ++ showExprLt t2 2)
+showExprLt (Nat n) _ = show n
+
+parenCheckLt :: Int -> Int -> String -> String
+parenCheckLt n m xs = if n < m then xs else "(" ++ xs ++ ")"
