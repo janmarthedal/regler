@@ -53,38 +53,21 @@ build xs = case parse expr xs of
              Nothing       -> error "Invalid input"
 
 showExpr :: Expr -> String
-showExpr t = showExprEq t 0
+showExpr t = showExpr' t (>=0)
 
-showExprEq :: Expr -> Int -> String
-showExprEq (Add e1 e2) n = showAssocEq "+" e1 e2 n 1
-showExprEq (Sub e1 e2) n = showAssocLeftEq "-" e1 e2 n 1
-showExprEq (Mul e1 e2) n = showAssocEq "*" e1 e2 n 2
-showExprEq (Div e1 e2) n = showAssocLeftEq "/" e1 e2 n 2
-showExprEq (Neg e) n = parenCheckEq n 3 ("-" ++ showExprEq e 3)
-showExprEq (Nat n) _ = show n
+showExpr' :: Expr -> (Int -> Bool) -> String
+showExpr' (Add e1 e2) parenCmp = showAssoc' "+" e1 e2 parenCmp 1
+showExpr' (Sub e1 e2) parenCmp = showAssocLeft' "-" e1 e2 parenCmp 1
+showExpr' (Mul e1 e2) parenCmp = showAssoc' "*" e1 e2 parenCmp 2
+showExpr' (Div e1 e2) parenCmp = showAssocLeft' "/" e1 e2 parenCmp 2
+showExpr' (Neg e) parenCmp = parenCheck (parenCmp 3) ("-" ++ showExpr' e (>=3))
+showExpr' (Nat n) _ = show n
 
-showAssocEq :: String -> Expr -> Expr -> Int -> Int -> String
-showAssocEq op e1 e2 n m = parenCheckEq n m (showExprEq e1 m ++ op ++ showExprEq e2 m)
+showAssoc' :: String -> Expr -> Expr -> (Int -> Bool) -> Int -> String
+showAssoc' op e1 e2 parenCmp m = parenCheck (parenCmp m) (showExpr' e1 (>=m) ++ op ++ showExpr' e2 (>=m))
 
-showAssocLeftEq :: String -> Expr -> Expr -> Int -> Int -> String
-showAssocLeftEq op e1 e2 n m = parenCheckEq n m (showExprEq e1 m ++ op ++ showExprLt e2 m)
+showAssocLeft' :: String -> Expr -> Expr -> (Int -> Bool) -> Int -> String
+showAssocLeft' op e1 e2 parenCmp m = parenCheck (parenCmp m) (showExpr' e1 (>=m) ++ op ++ showExpr' e2 (>m))
 
-parenCheckEq :: Int -> Int -> String -> String
-parenCheckEq n m xs = if n <= m then xs else "(" ++ xs ++ ")"
-
-showExprLt :: Expr -> Int -> String
-showExprLt (Add e1 e2) n = showAssocLt "+" e1 e2 n 1
-showExprLt (Sub e1 e2) n = showAssocLeftLt "-" e1 e2 n 1
-showExprLt (Mul e1 e2) n = showAssocLt "*" e1 e2 n 2
-showExprLt (Div e1 e2) n = showAssocLeftLt "/" e1 e2 n 2
-showExprLt (Neg e) n = parenCheckLt n 3 ("-" ++ showExprEq e 3)
-showExprLt (Nat n) _ = show n
-
-showAssocLt :: String -> Expr -> Expr -> Int -> Int -> String
-showAssocLt op e1 e2 n m = parenCheckLt n m (showExprEq e1 m ++ op ++ showExprEq e2 m)
-
-showAssocLeftLt :: String -> Expr -> Expr -> Int -> Int -> String
-showAssocLeftLt op e1 e2 n m = parenCheckLt n m (showExprEq e1 m ++ op ++ showExprLt e2 m)
-
-parenCheckLt :: Int -> Int -> String -> String
-parenCheckLt n m xs = if n < m then xs else "(" ++ xs ++ ")"
+parenCheck :: Bool -> String -> String
+parenCheck noParens ex = if noParens then ex else "(" ++ ex ++ ")"
