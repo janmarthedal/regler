@@ -11,10 +11,14 @@
 - **ℝ and ℂ are not kernel primitives.** They are library-defined sets, axiomatized via equalities (e.g., `ℚ ⊆ ℝ`, `i² = -1`). Constants like π, e, i and functions like sin, exp, sqrt are introduced with characterizing equalities, not built into the kernel.
 - **General set machinery in the kernel.** The kernel provides sets/types as first-class objects, subset relations, membership reasoning, function signatures over sets, and reasoning under assumptions. ℕ/ℤ/ℚ use this machinery and are additionally backed by built-in data; ℝ/ℂ use the same machinery with only axioms.
 
+## Working notes
+
+- `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers sets.
+
 ## Milestones
 
 1. Determine the minimum set of built-in features necessary
-2. Write one or more example files with statements and queries
+2. Write one or more example files with declarations, axioms, equalities, etc.
 3. Write initial syntax specification
 4. Choose programming language and build a proof-of-concept
 
