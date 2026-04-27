@@ -18,7 +18,7 @@
 ## Milestones
 
 1. Determine the minimum set of built-in features necessary
-2. Write one or more example files with declarations, axioms, equalities, etc.
+2. Write one or more example files with declarations, facts, equalities, etc.
 3. Write initial syntax specification
 4. Choose programming language and build a proof-of-concept
 
