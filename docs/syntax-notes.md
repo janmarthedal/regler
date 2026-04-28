@@ -48,6 +48,15 @@ The list will grow as the language fills in.
 
 Standard-prelude names like `ℕ`, `ℤ`, `ℚ`, `ℝ`, `ℂ` are not reserved — they are identifiers defined in a library and could in principle be shadowed.
 
+## Numeric literals
+
+- **Integer literals**: a non-empty sequence of decimal digits (`0`, `1`, `42`, `1234567890`). Arbitrary precision.
+- **No sign in literals**: `-3` is always the expression `-(3)`.
+- **No alternative bases**: no `0x…`, `0b…`, `0o…`. Out of scope for a CAS.
+- **No decimal or floating-point literals**: rejected by the lexer with a pointer to the rational form.
+- **No separate rational literal form**: `p/q` is the expression `p / q`, with `/` between integer values producing a rational. The kernel canonicalizes to `gcd(p, q) = 1`, `q > 0`. Pattern matching that wants "any rational literal" inspects the structural application, not a single atom.
+- **Digit grouping with `_` deferred** — not needed yet, and interacts with the underscore in identifiers; revisit if large constants become hard to read.
+
 ## Expression grammar
 
 Operators are grouped into three layers — terms (numeric and set-valued), atomic propositions (relations), and compound propositions (logic) — with binders on top.
