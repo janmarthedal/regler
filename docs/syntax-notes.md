@@ -187,6 +187,25 @@ let pair_sum : ℝ × ℝ → ℝ = ((x, y) : ℝ × ℝ) ↦ x + y
 
 In every legal context a lambda's expected type is already known (from the surrounding `let`, function-argument signature, or fact equation), so no codomain annotation is needed on the lambda itself.
 
+### Function arity and application
+
+Functions take a single argument. Multi-argument functions are **uncurried** — their signatures use Cartesian products, and application uses comma-separated arguments that desugar to a tuple. Curried form (`f : ℝ → ℝ → ℝ`) is not a separate spelling for the same thing; if it appears, it denotes a different function (one returning a function).
+
+```
+let add : ℝ × ℝ → ℝ
+fact (x, y : ℝ) ⊢ add(x, y) = x + y
+
+let dist3 : ℝ × ℝ × ℝ → ℝ
+fact (x, y, z : ℝ) ⊢ dist3(x, y, z) = sqrt(x² + y² + z²)
+```
+
+- Application: `f(x, y)` parses as `f` applied to the tuple `(x, y)`; `f(x, y)` and `f((x, y))` are the same expression.
+- Tuples are first-class: `let p : ℝ × ℝ = (x, y)` then `f(p)` works.
+- Cartesian product `×` is right-associative (rule chosen for consistency; tuple semantics are independent).
+- Lambdas use tuple patterns: `((x, y) : ℝ × ℝ) ↦ x + y`.
+- Partial application is written explicitly: `(y : ℝ) ↦ f(x, y)`.
+- Nullary functions are not supported. A "constant" is just a value: `let pi : ℝ`, not `let pi : () → ℝ`.
+
 ### Subset and coercion
 
 A value declared in a set is automatically a member of every superset (since `ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ`). No explicit coercion is needed.
@@ -195,7 +214,6 @@ When the declared set is *narrower* than the natural one (`let small : Pos = 1/2
 
 ### Open questions
 
-- **Function arity / currying.** Whether `f : ℝ × ℝ → ℝ` (one pair argument) or `f : ℝ → ℝ → ℝ` (curried) is the default, or whether both are allowed.
 - **Narrowing proof obligations.** When a value is declared in a strict subset, how the kernel checks membership.
 - **Overloaded operators in lambda bodies.** When the body uses operators like `·` whose signatures exist on multiple sets, codomain inference may need a tie-breaking rule (e.g., smallest containing set, or require explicit annotation).
 
