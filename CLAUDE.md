@@ -13,7 +13,8 @@
 
 ## Working notes
 
-- `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers sets.
+- `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers bindings, sets, facts, values.
+- `docs/syntax-open-questions.md` — checklist of syntax decisions still to make.
 
 ## Milestones
 
