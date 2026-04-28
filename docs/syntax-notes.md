@@ -4,12 +4,30 @@ Working notes on concrete syntax. Decisions here are tentative — recorded so t
 
 ## Bindings (`let`)
 
-A single keyword `let` introduces every named thing — values, functions, and sets. Declarations are distinguished from definitions by the presence of `=`:
+A single keyword `let` introduces every named thing — values, functions, and sets. Forms:
 
-- `let name : Sort` — declaration (opaque; characterized later by facts).
-- `let name : Sort = Expr` — definition.
+- `let name : Sort`                  — declaration (opaque; characterized later by facts).
+- `let name : Sort = Expr`           — definition with explicit sort.
+- `let name = Expr`                  — definition with sort inferred from `Expr`.
+- `let name : Sort = Expr in body`   — local definition (expression-level binder).
+- `let name = Expr in body`          — local definition with inferred sort.
 
-Every `let` carries an explicit sort/type annotation; there is no inference. The annotation is the set the value belongs to (ℕ, ℝ, ℝ → ℝ, …) or the universe `Set` for set-valued things.
+The annotation is **required** for declarations (no RHS to infer from) and **optional** for definitions. The annotation is the set the value belongs to (ℕ, ℝ, ℝ → ℝ, …) or the universe `Set` for set-valued things.
+
+### Type inference rule
+
+When the annotation is omitted, the kernel infers the *smallest containing set*: each subexpression is given the most specific type from its constituents and operator signatures, walking up subset chains only when an operator's signature demands it.
+
+| Expression       | Inferred type |
+|------------------|---------------|
+| `42`             | `ℕ`           |
+| `1/2`            | `ℚ`           |
+| `π`              | `ℝ`           |
+| `π + i`          | `ℂ`           |
+| `(1, 2)`         | `ℕ × ℕ`       |
+| `(x : ℝ) ↦ 2·x`  | `ℝ → ℝ`       |
+
+Writing an explicit annotation that is *wider* than the inferred type is always allowed — the kernel verifies membership via subset coercion. Writing one that is *narrower* (e.g., `let small : Pos = 1/2`) creates a proof obligation; that mechanism is deferred.
 
 There is no function- or set-definition sugar. A function (or parameterized set) defined by an equation is always written as a declaration plus a `fact`. Sugar may be reintroduced later if it proves consistently useful.
 
@@ -259,7 +277,7 @@ fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with 
 
 - Declared with `let` (see Bindings).
 - **Every value belongs to a set.** The set appears as the sort annotation in the `let`. Concrete values use sets like ℝ; set-valued things use the universe `Set`.
-- **Explicit annotations are required.** No inference, even when the RHS makes the set obvious. (`let half : ℚ = 1/2`, never `let half = 1/2`.)
+- **Annotations are optional when there is an RHS.** A definition `let half = 1/2` is allowed; the kernel infers `ℚ` (smallest containing set; see Bindings). Annotations remain required for declarations without an RHS.
 - **No function-definition sugar.** A function with a defining equation is written as a declaration plus a fact — there is no `let f(x : ℝ) : ℝ = 2·x` form.
 - **No pattern arguments.** Multi-case definitions are written as multiple facts, not as pattern rows. Patterns would add no expressive power and would conflict with the "equalities are foundational" design.
 
@@ -270,9 +288,11 @@ fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with 
 let π : ℝ
 let e : ℝ
 
-# Defined constant
+# Defined constant (with or without annotation)
 let half : ℚ = 1/2
 let one  : ℕ = 1
+let two       = 1 + 1     # inferred ℕ
+let z         = π + i     # inferred ℂ
 
 # Declared function (a value living in a function space)
 let sin : ℝ → ℝ
@@ -286,6 +306,22 @@ let factorial : ℕ → ℕ
 fact factorial(0) = 1
 fact ∀ n ∈ ℕ. factorial(n+1) = (n+1) · factorial(n)
 ```
+
+### Local `let` (expression-level)
+
+Used inside an expression to bind an intermediate name. Same annotation rule: optional when the RHS is given (which is always here).
+
+```
+let r = a · a + b · b in sqrt(r)
+
+let x = a + b in
+  let y = c + d in
+    x · y
+
+let p : ℝ × ℝ = (a, b) in length(p)
+```
+
+Local `let` is at level 17 in the precedence table (binders) — its body extends rightward as far as possible.
 
 ### Anonymous functions
 

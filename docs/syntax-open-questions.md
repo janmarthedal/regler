@@ -6,7 +6,7 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Blocks coherent example files
 
-- [ ] **Local `let` in expressions.** `let x = ... in expr` for intermediate naming inside a proof step or expression body.
+(none — the syntax surface is settled enough to start writing example files)
 
 ## Important, can be sketched after first examples
 
@@ -17,7 +17,7 @@ Grouped by how soon each one blocks writing realistic example files.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.
 - [ ] **Auto-unfolding of definitions.** Whether `let half : ℚ = 1/2` causes `half` to be unfolded automatically or only when explicitly rewritten.
 - [ ] **Set membership vs. promotion in expressions.** Whether `2 + π` (with `2 ∈ ℕ`, `π ∈ ℝ`) requires explicit coercion or is promoted implicitly. Big readability impact.
-- [ ] **Overloaded operators in lambda bodies.** Tie-breaking rule when an operator like `·` has signatures on multiple sets and the lambda body's codomain has to be inferred.
+- [ ] **Overloaded operators under inference.** Tie-breaking rule when an operator like `·` has signatures on multiple sets and the inferred type of an expression (anywhere — not just lambda bodies) is ambiguous. Current proposal: smallest set with a defined signature.
 - [ ] **Narrowing proof obligations.** When a value is declared in a strict subset (e.g., `let small : Pos = 1/2`), how the kernel checks the membership obligation.
 
 ## Deferrable
