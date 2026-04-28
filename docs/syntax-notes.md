@@ -58,17 +58,17 @@ let RealEndo     : Set = ℝ → ℝ
 
 -- 8. Parameterized set (a function returning Set; declaration + fact)
 let Interval : ℝ × ℝ → Set
-fact (a, b : ℝ) ⊢ Interval(a, b) = {x ∈ ℝ | a ≤ x ∧ x ≤ b}
+fact ∀ a, b ∈ ℝ. Interval(a, b) = {x ∈ ℝ | a ≤ x ∧ x ≤ b}
 
 let Multiples : ℤ → Set
-fact (n : ℤ) ⊢ Multiples(n) = {n·k | k ∈ ℤ}
+fact ∀ n ∈ ℤ. Multiples(n) = {n·k | k ∈ ℤ}
 
 -- 9. Parameterized over a set (Set as a sort/universe)
 let Pairs : Set × Set → Set
-fact (S, T : Set) ⊢ Pairs(S, T) = S × T
+fact ∀ S, T ∈ Set. Pairs(S, T) = S × T
 
 let Endo : Set → Set
-fact (S : Set) ⊢ Endo(S) = S → S
+fact ∀ S ∈ Set. Endo(S) = S → S
 ```
 
 ("Six conceptual forms" refers to the categories: opaque declaration, extensional, predicate-subset, image, set-algebra, parameterized.)
@@ -94,12 +94,12 @@ let recip : Nonzero → ℝ
 -- Inline (anonymous) sets inside a signature
 let abs_inv : {x ∈ ℝ | x ≠ 0} → Pos
 
--- Variable annotations in facts (placeholder syntax; binding form is open)
-fact (x : ℝ)    ⊢ x + 0 = x
-fact (x, y : ℝ) ⊢ x + y = y + x
+-- Variable bindings in facts
+fact ∀ x ∈ ℝ. x + 0 = x
+fact ∀ x, y ∈ ℝ. x + y = y + x
 
 -- Side conditions
-fact (a, b : ℝ) ⊢ log(a·b) = log(a) + log(b)   if a ∈ Pos ∧ b ∈ Pos
+fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a ∈ Pos ∧ b ∈ Pos
 
 -- Parameterized sets used like any function call
 let UnitInterval : Set = Interval(0, 1)
@@ -118,7 +118,7 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 
 - **The declaration-then-fact pattern.** Verbose for long subset chains (ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ requires 4 separate facts) and for parameterized sets. Acceptable for now; revisit if it becomes painful in real examples.
 - **ASCII fallbacks.** Whether `in`, `subset`, `forall`, etc. are accepted alongside the Unicode forms — deferred.
-- **Sort of `Set`.** Treated as a universe (you can't write `ℝ ∈ Set` as a proposition, only `S : Set` as a sort annotation). Whether the language ever needs a higher universe is deferred — not needed for current goals.
+- **Sort of `Set`.** Treated as a universe: `S : Set` is a sort annotation in `let`, and `∀ S ∈ Set. P` is binding-shorthand under a quantifier, but `S ∈ Set` is *not* a writable proposition. Whether the language ever needs a higher universe is deferred — not needed for current goals.
 
 ## Facts
 
@@ -126,20 +126,22 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 
 - Keyword: `fact`. Used to assert any statement the system should treat as given — equalities, subset claims, membership claims, and the defining equations of declared functions and parameterized sets.
 - **One keyword for all asserted statements.** The syntax does not distinguish "axioms" (taken as fundamental) from "definitions" (introducing meaning); both are facts the kernel is told. A future `theorem` keyword may be added for proved statements.
-- A fact may bind variables (`(x : ℝ) ⊢ ...`) and carry side conditions (`if P`).
+- **Variables are bound by an explicit `∀` prefix** on the fact's proposition. The math-paper form `∀ x ∈ S. P` is used; multiple variables sharing a sort are comma-separated: `∀ x, y ∈ ℝ. P`. The `∈` here is binding-shorthand even when `S = Set` (as in `∀ S ∈ Set. P`); this is not a propositional membership claim.
+- Other quantifiers (`∃`, nested `∀`) appear *inline* inside the proposition. Only the outermost `∀` interacts with potential future suffix sugar.
+- A fact may carry side conditions with an `if` clause: `<proposition> if <condition>`.
+- A `for`-suffix sugar (`P for x ∈ S`) — equivalent to wrapping the proposition with an outermost `∀` — may be added later but is not part of the core syntax.
 
 ### Forms
 
 ```
 fact ℚ ⊆ ℝ                                                       -- subset claim
 fact 1/2 ∈ ℚ                                                     -- membership claim
-fact (x : ℝ)    ⊢ x + 0 = x                                      -- equality with bound vars
-fact (a, b : ℝ) ⊢ log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  -- with side condition
+fact ∀ x ∈ ℝ. x + 0 = x                                      -- equality with bound vars
+fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  -- with side condition
 ```
 
 ### Open questions
 
-- **Binding/quantifier syntax.** `(x : ℝ) ⊢ ...` is placeholder. Alternative: implicit universal quantification over free variables, with sorts declared separately or inferred. Needs to be settled before writing real example files.
 - **Condition language.** `if` clauses currently allow conjunctions of membership, equality, inequality. Whether richer logic is permitted (disjunction, negation, quantifiers) is open.
 
 ## Values
@@ -169,11 +171,11 @@ let exp : ℝ → ℝ
 
 -- Defined function: declaration + fact(s)
 let double : ℝ → ℝ
-fact (x : ℝ) ⊢ double(x) = 2·x
+fact ∀ x ∈ ℝ. double(x) = 2·x
 
 let factorial : ℕ → ℕ
 fact factorial(0) = 1
-fact (n : ℕ) ⊢ factorial(n+1) = (n+1) · factorial(n)
+fact ∀ n ∈ ℕ. factorial(n+1) = (n+1) · factorial(n)
 ```
 
 ### Anonymous functions
@@ -193,10 +195,10 @@ Functions take a single argument. Multi-argument functions are **uncurried** —
 
 ```
 let add : ℝ × ℝ → ℝ
-fact (x, y : ℝ) ⊢ add(x, y) = x + y
+fact ∀ x, y ∈ ℝ. add(x, y) = x + y
 
 let dist3 : ℝ × ℝ × ℝ → ℝ
-fact (x, y, z : ℝ) ⊢ dist3(x, y, z) = sqrt(x² + y² + z²)
+fact ∀ x, y, z ∈ ℝ. dist3(x, y, z) = sqrt(x² + y² + z²)
 ```
 
 - Application: `f(x, y)` parses as `f` applied to the tuple `(x, y)`; `f(x, y)` and `f((x, y))` are the same expression.

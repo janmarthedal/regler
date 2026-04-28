@@ -6,7 +6,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Blocks coherent example files
 
-- [ ] **Variable binding form in facts.** `(x : ℝ) ⊢ ...` is placeholder. Alternatives: `∀ x ∈ ℝ. ...`, implicit universal quantification with separate `var`/inferred sorts. Most leveraged decision — shows up in every nontrivial fact.
 - [ ] **Expression grammar.** Operators (`+, -, ·, /, ^, =, ≠, <, ≤, ∈, ⊆, ∧, ∨, ¬`), precedence, associativity, and how unary minus interacts with literals (`-3` literal vs. `-(3)`).
 - [ ] **Identifier rules.** Greek letters (π, λ), subscripts/superscripts (ℚ⁺, x₁), primes (f', f''), multi-char names, what Unicode is allowed inside identifiers.
 - [ ] **Numeric literals.** Integer literals, rationals (`1/2` as literal vs. expression `1 ÷ 2`), negative literals.
