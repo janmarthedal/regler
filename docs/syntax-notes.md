@@ -13,6 +13,15 @@ Every `let` carries an explicit sort/type annotation; there is no inference. The
 
 There is no function- or set-definition sugar. A function (or parameterized set) defined by an equation is always written as a declaration plus a `fact`. Sugar may be reintroduced later if it proves consistently useful.
 
+## Comments
+
+Line comments start with `#` and run to end of line. There are no block comments.
+
+```
+# this is a comment
+let π : ℝ   # trailing comment
+```
+
 ## Sets
 
 ### Decisions so far
@@ -25,45 +34,45 @@ There is no function- or set-definition sugar. A function (or parameterized set)
 ### The forms
 
 ```
--- 1. Bare opaque declaration
+# 1. Bare opaque declaration
 let ℝ : Set
 
--- 2. Declaration plus separate fact statements
+# 2. Declaration plus separate fact statements
 let ℝ : Set
 fact ℚ ⊆ ℝ
 
 let ℂ : Set
 fact ℝ ⊆ ℂ
 
--- 3. Definition by enumeration (extensional)
+# 3. Definition by enumeration (extensional)
 let Digits : Set = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 let Bit    : Set = {0, 1}
 
--- 4. Definition by predicate (subset comprehension)
+# 4. Definition by predicate (subset comprehension)
 let Pos     : Set = {x ∈ ℝ | x > 0}
 let Nonzero : Set = {x ∈ ℝ | x ≠ 0}
 
--- 5. Definition by image
+# 5. Definition by image
 let Squares : Set = {n² | n ∈ ℕ}
 let Evens   : Set = {2·k | k ∈ ℤ}
 
--- 6. Image with filter (combined)
+# 6. Image with filter (combined)
 let EvenSquares : Set = {n² | n ∈ ℕ, n mod 2 = 0}
 
--- 7. Definition by set algebra
+# 7. Definition by set algebra
 let NonzeroReals : Set = ℝ \ {0}
 let ℚ⁺           : Set = ℚ ∩ Pos
 let RealPairs    : Set = ℝ × ℝ
 let RealEndo     : Set = ℝ → ℝ
 
--- 8. Parameterized set (a function returning Set; declaration + fact)
+# 8. Parameterized set (a function returning Set; declaration + fact)
 let Interval : ℝ × ℝ → Set
 fact ∀ a, b ∈ ℝ. Interval(a, b) = {x ∈ ℝ | a ≤ x ∧ x ≤ b}
 
 let Multiples : ℤ → Set
 fact ∀ n ∈ ℤ. Multiples(n) = {n·k | k ∈ ℤ}
 
--- 9. Parameterized over a set (Set as a sort/universe)
+# 9. Parameterized over a set (Set as a sort/universe)
 let Pairs : Set × Set → Set
 fact ∀ S, T ∈ Set. Pairs(S, T) = S × T
 
@@ -76,41 +85,41 @@ fact ∀ S ∈ Set. Endo(S) = S → S
 ### Usage examples
 
 ```
--- Membership claims
+# Membership claims
 1/2 ∈ ℚ
 π   ∈ ℝ \ ℚ
 0   ∈ Bit
 
--- Subset claims (in facts or theorems)
+# Subset claims (in facts or theorems)
 fact ℕ ⊆ ℤ
 fact ℤ ⊆ ℚ
 
--- Function signatures (sets as domain/codomain)
+# Function signatures (sets as domain/codomain)
 let f     : ℝ → ℝ
 let g     : ℝ × ℝ → ℝ
 let sin   : ℝ → Interval(-1, 1)
 let recip : Nonzero → ℝ
 
--- Inline (anonymous) sets inside a signature
+# Inline (anonymous) sets inside a signature
 let abs_inv : {x ∈ ℝ | x ≠ 0} → Pos
 
--- Variable bindings in facts
+# Variable bindings in facts
 fact ∀ x ∈ ℝ. x + 0 = x
 fact ∀ x, y ∈ ℝ. x + y = y + x
 
--- Side conditions
+# Side conditions
 fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a ∈ Pos ∧ b ∈ Pos
 
--- Parameterized sets used like any function call
+# Parameterized sets used like any function call
 let UnitInterval : Set = Interval(0, 1)
 let clamp        : ℝ → Interval(0, 1)
 let m            : Endo(ℝ)
 
--- Set algebra inline
+# Set algebra inline
 let to_rat      : ℚ ∩ Pos → ℚ
 let union_check : ℕ ∪ {-1, -2} → ℤ
 
--- Set-builder used directly without naming
+# Set-builder used directly without naming
 let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 ```
 
@@ -134,10 +143,10 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 ### Forms
 
 ```
-fact ℚ ⊆ ℝ                                                       -- subset claim
-fact 1/2 ∈ ℚ                                                     -- membership claim
-fact ∀ x ∈ ℝ. x + 0 = x                                      -- equality with bound vars
-fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  -- with side condition
+fact ℚ ⊆ ℝ                                                       # subset claim
+fact 1/2 ∈ ℚ                                                     # membership claim
+fact ∀ x ∈ ℝ. x + 0 = x                                      # equality with bound vars
+fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with side condition
 ```
 
 ### Open questions
@@ -157,19 +166,19 @@ fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  -- with
 ### Forms
 
 ```
--- Declared constant (opaque; characterized by later facts)
+# Declared constant (opaque; characterized by later facts)
 let π : ℝ
 let e : ℝ
 
--- Defined constant
+# Defined constant
 let half : ℚ = 1/2
 let one  : ℕ = 1
 
--- Declared function (a value living in a function space)
+# Declared function (a value living in a function space)
 let sin : ℝ → ℝ
 let exp : ℝ → ℝ
 
--- Defined function: declaration + fact(s)
+# Defined function: declaration + fact(s)
 let double : ℝ → ℝ
 fact ∀ x ∈ ℝ. double(x) = 2·x
 
