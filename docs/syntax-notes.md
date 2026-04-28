@@ -22,6 +22,48 @@ Line comments start with `#` and run to end of line. There are no block comments
 let π : ℝ   # trailing comment
 ```
 
+## Expression grammar
+
+Operators are grouped into three layers — terms (numeric and set-valued), atomic propositions (relations), and compound propositions (logic) — with binders on top.
+
+### Precedence (tightest first)
+
+| Level | Operators / forms | Assoc. |
+|---|---|---|
+| 1 | atoms: identifiers, literals, `(e)`, `{…}`, tuple `(e₁, e₂, …)` | — |
+| 2 | function application `f(x, y)` | left |
+| 3 | unary `-x`, logical `¬P` | prefix |
+| 4 | power `x ^ y` | right |
+| 5 | multiplicative `·`, `/` | left |
+| 6 | additive `+`, binary `-` | left |
+| 7 | set difference `\` | left |
+| 8 | set intersection `∩` | left |
+| 9 | set union `∪` | left |
+| 10 | Cartesian product `×` | right |
+| 11 | function arrow `→` | right |
+| 12 | comparisons `=`, `≠`, `<`, `≤`, `>`, `≥`, `∈`, `∉`, `⊆`, `⊇` | non-associative |
+| 13 | conjunction `∧` | left |
+| 14 | disjunction `∨` | left |
+| 15 | implication `⇒` | right |
+| 16 | biconditional `⇔` (if used) | non-associative |
+| 17 | binders: `∀ x ∈ S. P`, `∃ x ∈ S. P`, `λ x : T. body`, `let x : T = e in body`, `if P then a else b` | extends rightward |
+
+### Decisions implied by the table
+
+- **Power is right-associative.** `a ^ b ^ c = a ^ (b ^ c)`.
+- **`×` and `→` are right-associative**, so `A × B × C` = `A × (B × C)` and `A → B → C` = `A → (B → C)`. Combined with their precedences, `(A × B) → C` needs no parentheses.
+- **Comparisons are non-associative.** `a < b < c` is a *parse error*; write `a < b ∧ b < c`. Avoids the `(a < b) < c` pitfall. Chained-comparison sugar may be added later; not core.
+- **`=` is just a comparison** at level 12, used uniformly in facts and expressions. No separate equality form.
+- **Binders extend rightward as far as possible.** `∀ x ∈ ℝ. P ∧ Q` parses as `∀ x ∈ ℝ. (P ∧ Q)`. Parentheses limit scope.
+- **Unary `-` and binary `-` share the symbol.** `-3` is always the expression `-(3)`; there are no negative integer literals. The kernel canonicalizes internally.
+- **No implicit multiplication.** `2x` is not `2·x`; the `·` is required.
+- **No assignment**, so `=` is unambiguously equality.
+
+### Things deferred
+
+- **Superscript powers** (`x²`) — depends on identifier rules; defer.
+- **Inline `if then else`** is listed at level 17 but its necessity is open; conditional behavior can be encoded via separate facts with `if` side conditions for now.
+
 ## Sets
 
 ### Decisions so far

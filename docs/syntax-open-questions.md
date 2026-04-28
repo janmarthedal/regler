@@ -6,7 +6,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Blocks coherent example files
 
-- [ ] **Expression grammar.** Operators (`+, -, ·, /, ^, =, ≠, <, ≤, ∈, ⊆, ∧, ∨, ¬`), precedence, associativity, and how unary minus interacts with literals (`-3` literal vs. `-(3)`).
 - [ ] **Identifier rules.** Greek letters (π, λ), subscripts/superscripts (ℚ⁺, x₁), primes (f', f''), multi-char names, what Unicode is allowed inside identifiers.
 - [ ] **Numeric literals.** Integer literals, rationals (`1/2` as literal vs. expression `1 ÷ 2`), negative literals.
 - [ ] **Statement separation.** Newlines, semicolons, layout-sensitive? Affects multi-line facts.
