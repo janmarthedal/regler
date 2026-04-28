@@ -18,10 +18,12 @@
 
 ## Milestones
 
-1. Determine the minimum set of built-in features necessary
-2. Write one or more example files with declarations, facts, equalities, etc.
-3. Write initial syntax specification
-4. Choose programming language and build a proof-of-concept
+1. Design the surface syntax and validate it by writing example files that express each of the long-term goals.
+2. Distill the kernel built-ins and core algorithms implied by the syntax.
+3. Choose a restricted POC scope: simplify a univariate polynomial.
+4. Decide on the implementation language, informed by the kernel's algorithmic needs.
+5. Build lexer, parser, kernel, and REPL covering the POC scope.
+6. Extend and iterate; return to step 1 if a long-term goal cannot be expressed.
 
 ## Long-term goals
 
