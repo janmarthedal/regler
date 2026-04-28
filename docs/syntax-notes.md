@@ -22,6 +22,32 @@ Line comments start with `#` and run to end of line. There are no block comments
 let π : ℝ   # trailing comment
 ```
 
+## Identifiers
+
+An identifier is a non-empty sequence of characters where:
+
+- **First character:** any Unicode letter (general category `L*`) or `_`. Covers ASCII a–z A–Z, Greek (α–ω, Α–Ω), blackboard bold (ℕ ℤ ℚ ℝ ℂ), calligraphic (𝒮 𝒫), Fraktur, Hebrew (ℵ), etc.
+- **Subsequent characters:** any Unicode letter, decimal digit (0–9), Unicode subscript digit (₀–₉) or letter, Unicode superscript digit (⁰–⁹) or letter (`⁺`, `⁻` included), `_`, or `'`.
+
+Identifiers are case-sensitive: `f ≠ F`.
+
+Examples that are valid: `x`, `f'`, `f''`, `x₁`, `factorial`, `ℝⁿ`, `ℚ⁺`, `α₁'`, `_tmp`, `Σ_n`.
+Examples that are not: `2x` (digit leading), `x-y` (hyphen), `x.y` (dot), `f+g` (operator), `x y` (space).
+
+### Notable consequences
+
+- **Subscripts are part of the identifier**, not syntax. `x₁` is a single name; `x_i` makes `i` a literal subscript, not a variable. Indexed-by-variable use needs explicit application: `x(i)`.
+- **Superscripts are part of the identifier too.** `x²` is an identifier, not `x ^ 2`. Write powers with `^` (`x^2`). A future lex-time rewrite for `x²` → `x^2` is possible but not part of the core.
+- **Operator characters never appear in identifiers** — no `+`, `-`, `·`, `/`, `^`, `*`, `=`, `<`, `>`, `&`, `|`, hyphens, or whitespace.
+
+### Reserved words
+
+Identifiers that cannot be redefined: `let`, `fact`, `in`, `if`, `then`, `else`, `Set`.
+Operator-like reserved tokens (not identifiers but worth listing): `∀`, `∃`, `λ`, `↦`.
+The list will grow as the language fills in.
+
+Standard-prelude names like `ℕ`, `ℤ`, `ℚ`, `ℝ`, `ℂ` are not reserved — they are identifiers defined in a library and could in principle be shadowed.
+
 ## Expression grammar
 
 Operators are grouped into three layers — terms (numeric and set-valued), atomic propositions (relations), and compound propositions (logic) — with binders on top.

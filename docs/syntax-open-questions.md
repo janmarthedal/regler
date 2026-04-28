@@ -6,7 +6,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Blocks coherent example files
 
-- [ ] **Identifier rules.** Greek letters (π, λ), subscripts/superscripts (ℚ⁺, x₁), primes (f', f''), multi-char names, what Unicode is allowed inside identifiers.
 - [ ] **Numeric literals.** Integer literals, rationals (`1/2` as literal vs. expression `1 ÷ 2`), negative literals.
 - [ ] **Statement separation.** Newlines, semicolons, layout-sensitive? Affects multi-line facts.
 - [ ] **Naming facts.** Whether facts have names so they can be referred to later (e.g., when invoking a rewrite). `fact comm_add : (x, y : ℝ) ⊢ x + y = y + x` vs. anonymous.
