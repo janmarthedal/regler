@@ -13,6 +13,29 @@ Every `let` carries an explicit sort/type annotation; there is no inference. The
 
 There is no function- or set-definition sugar. A function (or parameterized set) defined by an equation is always written as a declaration plus a `fact`. Sugar may be reintroduced later if it proves consistently useful.
 
+## Statement separation
+
+Statements are separated by newlines, with **indentation as continuation**:
+
+- A non-empty, non-comment line starts a new statement *unless* its indent is strictly greater than the indent of the current statement's first line. In that case, it is a continuation.
+- A line whose indent is less than or equal to the current statement's first-line indent ends the current statement and (if non-empty) starts the next one.
+- Blank lines and comment-only lines do not affect statement boundaries.
+
+```
+let UnitInterval : Set =
+    {x ∈ ℝ | 0 ≤ x ∧ x ≤ 1}
+
+fact ∀ x, y ∈ ℝ.
+    log(x · y) = log(x) + log(y)
+    if x > 0 ∧ y > 0
+
+fact ℕ ⊆ ℤ
+```
+
+There is no explicit terminator (no `;`). The `;` may be added later as an opt-in override (`let a : ℕ = 1; let b : ℕ = 2` on one line); not part of the core syntax for now.
+
+Tabs and spaces are both whitespace, but mixing them in indentation is undefined behaviour at this stage — pick one and stick with it. (A formal rule may be added later.)
+
 ## Comments
 
 Line comments start with `#` and run to end of line. There are no block comments.

@@ -6,7 +6,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Blocks coherent example files
 
-- [ ] **Statement separation.** Newlines, semicolons, layout-sensitive? Affects multi-line facts.
 - [ ] **Naming facts.** Whether facts have names so they can be referred to later (e.g., when invoking a rewrite). `fact comm_add : (x, y : ℝ) ⊢ x + y = y + x` vs. anonymous.
 - [ ] **Local `let` in expressions.** `let x = ... in expr` for intermediate naming inside a proof step or expression body.
 - [ ] **Queries and rewriting syntax.** How a user actually does something — `simplify`, `rewrite using fact_name`, `evaluate`, `prove`. At least a sketch.
