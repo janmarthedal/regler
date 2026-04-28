@@ -10,6 +10,10 @@
 - **Built-in number sets and literals.** ℕ, ℤ, and ℚ are built in, with arbitrary-precision arithmetic. Integer and rational literals are supported. Decimals and floating-point numbers are not supported.
 - **ℝ and ℂ are not kernel primitives.** They are library-defined sets, axiomatized via equalities (e.g., `ℚ ⊆ ℝ`, `i² = -1`). Constants like π, e, i and functions like sin, exp, sqrt are introduced with characterizing equalities, not built into the kernel.
 - **General set machinery in the kernel.** The kernel provides sets/types as first-class objects, subset relations, membership reasoning, function signatures over sets, and reasoning under assumptions. ℕ/ℤ/ℚ use this machinery and are additionally backed by built-in data; ℝ/ℂ use the same machinery with only axioms.
+- **Operators start naked.** Beyond literal arithmetic on ℕ/ℤ/ℚ (which the kernel evaluates directly), the kernel knows nothing about operators like `+`, `·`, `∪`, `∩`. Properties such as commutativity, associativity, identity elements, and distributivity must be stated as facts.
+- **AC marking is earned dynamically.** When the kernel reads a fact whose shape matches commutativity (`∀ a, b. f(a, b) = f(b, a)`) and one matching associativity for the same operator, that operator is promoted to AC representation: applications are flattened and operands sorted, so commutativity and associativity hold by construction thereafter.
+- **Auto-orientation by term order.** The kernel has a fixed well-founded term order. Any equality whose two sides are strictly comparable under this order is auto-oriented toward the smaller side and applied automatically during simplification — the user does not need to invoke it. Equalities whose sides are incomparable (e.g., factor/expand pairs) remain user-invoked.
+- **Fact = logical claim + rewrite rule.** A `fact` serves both roles. Variables bound by the outermost `∀` act as pattern variables when the fact is used as a rewrite. There is no separate "rule" concept.
 
 ## Working notes
 

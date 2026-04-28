@@ -12,8 +12,10 @@ Grouped by how soon each one blocks writing realistic example files.
 
 - [ ] **Queries and rewriting syntax.** How a user actually does something — `simplify`, `rewrite using fact_name`, `evaluate`, `prove`. Decide together with the next two items, since they interact.
 - [ ] **Naming facts.** Whether facts have names so they can be referred to later (e.g., when invoking a rewrite). `fact comm_add : ∀ x, y ∈ ℝ. x + y = y + x` vs. anonymous. Lands together with queries/rewriting since names matter only when facts are invoked.
-- [ ] **Direction of rewriting.** When a fact `a = b` is used as a rewrite, how `→` vs. `←` is specified. Default? Both?
-- [ ] **Pattern variables vs. bound variables.** Whether variables bound by `∀ x ∈ ℝ. ...` automatically become pattern variables matching arbitrary subterms when the fact is used as a rewrite.
+- [ ] **Direction of rewriting (manual invocation).** Auto-orientation by term order handles equalities whose sides are strictly comparable. For incomparable equalities (factor/expand pairs, etc.), how the user specifies `→` vs. `←` when invoking a fact manually.
+- [ ] **Term order choice.** Which well-founded term order the kernel uses for auto-orientation (lex, KBO, LPO, …) and how the per-symbol precedence is fixed.
+- [ ] **AC recognition details.** Which fact patterns trigger AC marking, whether partial AC (commutative-only or associative-only) is handled, and how marking interacts with overloaded operators across subset chains.
+- [ ] **Identity-element absorption.** Whether a fact like `∀ x. x + 0 = x` additionally marks `0` as an identity for `+` (so it is absorbed during normalization), or it just becomes an auto-oriented rewrite.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.
 - [ ] **Auto-unfolding of definitions.** Whether `let half : ℚ = 1/2` causes `half` to be unfolded automatically or only when explicitly rewritten.
 - [ ] **Set membership vs. promotion in expressions.** Whether `2 + π` (with `2 ∈ ℕ`, `π ∈ ℝ`) requires explicit coercion or is promoted implicitly. Big readability impact.

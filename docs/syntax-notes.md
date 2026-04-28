@@ -256,6 +256,7 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 - **Variables are bound by an explicit `∀` prefix** on the fact's proposition. The math-paper form `∀ x ∈ S. P` is used; multiple variables sharing a sort are comma-separated: `∀ x, y ∈ ℝ. P`. The `∈` here is binding-shorthand even when `S = Set` (as in `∀ S ∈ Set. P`); this is not a propositional membership claim.
 - Other quantifiers (`∃`, nested `∀`) appear *inline* inside the proposition. Only the outermost `∀` interacts with potential future suffix sugar.
 - A fact may carry side conditions with an `if` clause: `<proposition> if <condition>`.
+- **A fact is both a logical claim and a rewrite rule.** Variables bound by the outermost `∀` act as pattern variables when the fact is used as a rewrite. The kernel auto-orients facts whose sides are strictly comparable under its term order; AC marking is earned by stating commutativity and associativity (see `CLAUDE.md` for the kernel-side design).
 - A `for`-suffix sugar (`P for x ∈ S`) — equivalent to wrapping the proposition with an outermost `∀` — may be added later but is not part of the core syntax.
 
 ### Forms
