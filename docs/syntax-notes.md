@@ -176,6 +176,17 @@ fact factorial(0) = 1
 fact (n : ℕ) ⊢ factorial(n+1) = (n+1) · factorial(n)
 ```
 
+### Anonymous functions
+
+Lambda syntax: `(x : ℝ) ↦ body`. The parameter is annotated (parallel to the explicit-annotation rule for `let`); the codomain is computed from the body's type using the same expression-typing the kernel already performs to check `let` bindings.
+
+```
+let double : ℝ → ℝ = (x : ℝ) ↦ 2·x
+let pair_sum : ℝ × ℝ → ℝ = ((x, y) : ℝ × ℝ) ↦ x + y
+```
+
+In every legal context a lambda's expected type is already known (from the surrounding `let`, function-argument signature, or fact equation), so no codomain annotation is needed on the lambda itself.
+
 ### Subset and coercion
 
 A value declared in a set is automatically a member of every superset (since `ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ`). No explicit coercion is needed.
@@ -184,9 +195,9 @@ When the declared set is *narrower* than the natural one (`let small : Pos = 1/2
 
 ### Open questions
 
-- **Lambda / anonymous functions.** Whether expressions like `λ x : ℝ. 2·x` or `(x : ℝ) ↦ 2·x` are needed, or whether named functions suffice for everything a CAS needs to express.
 - **Function arity / currying.** Whether `f : ℝ × ℝ → ℝ` (one pair argument) or `f : ℝ → ℝ → ℝ` (curried) is the default, or whether both are allowed.
 - **Narrowing proof obligations.** When a value is declared in a strict subset, how the kernel checks membership.
+- **Overloaded operators in lambda bodies.** When the body uses operators like `·` whose signatures exist on multiple sets, codomain inference may need a tie-breaking rule (e.g., smallest containing set, or require explicit annotation).
 
 ## Other syntax topics
 
