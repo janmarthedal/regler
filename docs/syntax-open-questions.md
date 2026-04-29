@@ -15,7 +15,6 @@ Grouped by how soon each one blocks writing realistic example files.
 - [ ] **Direction of rewriting (manual invocation).** Auto-orientation by term order handles equalities whose sides are strictly comparable. For incomparable equalities (factor/expand pairs, etc.), how the user specifies `→` vs. `←` when invoking a fact manually.
 - [ ] **Term order choice.** Which well-founded term order the kernel uses for auto-orientation (lex, KBO, LPO, …) and how the per-symbol precedence is fixed.
 - [ ] **AC recognition details.** Which fact patterns trigger AC marking, whether partial AC (commutative-only or associative-only) is handled, and how marking interacts with overloaded operators across subset chains.
-- [ ] **Identity-element absorption.** Whether a fact like `∀ x. x + 0 = x` additionally marks `0` as an identity for `+` (so it is absorbed during normalization), or it just becomes an auto-oriented rewrite.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.
 - [ ] **Auto-unfolding of definitions.** Whether `let half : ℚ = 1/2` causes `half` to be unfolded automatically or only when explicitly rewritten.
 - [ ] **Narrowing proof obligations.** When a value is declared in a strict subset (e.g., `let small : Pos = 1/2`), how the kernel checks the membership obligation.
