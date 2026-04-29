@@ -370,7 +370,7 @@ When an operator has signatures on multiple sets (e.g., `+`, `·` defined on eac
 
 **Outside-in (tie-breaker, weak form).** If a binding annotation, function-argument signature, or fact-equation side fixes an expected type `T` for the expression, *and* inside-out yields no signature or several incomparable ones, use `T` to pick a signature whose codomain is `T` or a subset, propagate the domain back to the operands, and recurse. When inside-out succeeds unambiguously, it wins — the annotation only acts as a boundary coercion.
 
-Worked examples:
+Worked examples (*lub* = least upper bound, i.e., the smallest set in the subset chain containing both operand types):
 
 | Expression | Resolution | Result |
 |---|---|---|
