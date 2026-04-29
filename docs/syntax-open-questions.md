@@ -18,8 +18,6 @@ Grouped by how soon each one blocks writing realistic example files.
 - [ ] **Identity-element absorption.** Whether a fact like `∀ x. x + 0 = x` additionally marks `0` as an identity for `+` (so it is absorbed during normalization), or it just becomes an auto-oriented rewrite.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.
 - [ ] **Auto-unfolding of definitions.** Whether `let half : ℚ = 1/2` causes `half` to be unfolded automatically or only when explicitly rewritten.
-- [ ] **Set membership vs. promotion in expressions.** Whether `2 + π` (with `2 ∈ ℕ`, `π ∈ ℝ`) requires explicit coercion or is promoted implicitly. Big readability impact.
-- [ ] **Overloaded operators under inference.** Tie-breaking rule when an operator like `·` has signatures on multiple sets and the inferred type of an expression (anywhere — not just lambda bodies) is ambiguous. Current proposal: smallest set with a defined signature.
 - [ ] **Narrowing proof obligations.** When a value is declared in a strict subset (e.g., `let small : Pos = 1/2`), how the kernel checks the membership obligation.
 
 ## Deferrable

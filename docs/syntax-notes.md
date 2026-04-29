@@ -358,12 +358,38 @@ fact ∀ x, y, z ∈ ℝ. dist3(x, y, z) = sqrt(x² + y² + z²)
 
 A value declared in a set is automatically a member of every superset (since `ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ`). No explicit coercion is needed.
 
+**Implicit promotion in expressions.** When an operator's operands live in different sets along a known subset chain, the kernel promotes the smaller-set operand to the larger set automatically. `2 + π` (with `2 ∈ ℕ`, `π ∈ ℝ`) is well-formed and has type `ℝ`; no `(2 : ℝ)` annotation is required. Promotion only happens along subset facts the kernel already knows (`ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ` once the relevant facts are in scope); unrelated sets do not get implicitly bridged.
+
 When the declared set is *narrower* than the natural one (`let small : Pos = 1/2`), the kernel must verify the membership obligation. That is a proof obligation, deferred for now.
+
+### Overload resolution
+
+When an operator has signatures on multiple sets (e.g., `+`, `·` defined on each of ℕ, ℤ, ℚ, ℝ, ℂ), the kernel resolves which signature applies using two rules:
+
+**Inside-out (primary).** At each operator node, after typing the operands, find the smallest set `S` in the known subset chain that contains both operand types and for which a signature `op : S × S → _` exists. Promote both operands to `S` via implicit promotion. The result type is the codomain of that signature.
+
+**Outside-in (tie-breaker, weak form).** If a binding annotation, function-argument signature, or fact-equation side fixes an expected type `T` for the expression, *and* inside-out yields no signature or several incomparable ones, use `T` to pick a signature whose codomain is `T` or a subset, propagate the domain back to the operands, and recurse. When inside-out succeeds unambiguously, it wins — the annotation only acts as a boundary coercion.
+
+Worked examples:
+
+| Expression | Resolution | Result |
+|---|---|---|
+| `2 + 3` | both ℕ; `+ : ℕ × ℕ` exists | `ℕ` |
+| `2 + π` | ℕ, ℝ; lub ℝ; `+ : ℝ × ℝ` exists; promote `2` | `ℝ` |
+| `π + i` | ℝ, ℂ; lub ℂ; promote `π` | `ℂ` |
+| `let x = 1 / 2` | ℕ, ℕ; no `/` on ℕ; walk up to ℚ | `ℚ` |
+| `let x : ℝ = 1 / 2` | inside-out gives ℚ; annotation is a boundary coercion (ℚ ⊆ ℝ) | binding `ℝ`, expr `ℚ` |
+| `let z : ℂ = sqrt(-1)` | inside-out ambiguous (ℝ-instance has failing obligation, ℂ-instance valid); rule 3 picks ℂ | `ℂ` |
+| `(x : ℝ) ↦ 2 · x` | ℕ, ℝ; lub ℝ; promote `2`; body `ℝ` | `ℝ → ℝ` |
+
+The "weak" form of outside-in is deliberate: typing `1/2` *as* a ℝ operation just because the binding is ℝ would be wrong for a CAS — exact ℝ arithmetic isn't generally available, and rationality is information worth preserving.
+
+This rule covers operators whose signatures lie along the ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ chain. **Non-chain overloading** (a `·` on matrices, polynomial rings, etc.) needs a partial-order generalization — "smallest containing set with a defined signature" becomes "most specific instance". Deferred until non-chain cases actually arise.
 
 ### Open questions
 
 - **Narrowing proof obligations.** When a value is declared in a strict subset, how the kernel checks membership.
-- **Overloaded operators in lambda bodies.** When the body uses operators like `·` whose signatures exist on multiple sets, codomain inference may need a tie-breaking rule (e.g., smallest containing set, or require explicit annotation).
+- **Non-chain operator overloading.** Generalizing the resolution rule beyond the ℕ–ℂ subset chain (matrices, polynomial rings, etc.). Deferred until those cases arrive.
 
 ## Other syntax topics
 
