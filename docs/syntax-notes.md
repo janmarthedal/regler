@@ -473,6 +473,30 @@ precedence: + < · < ^ < f < g
 - **Lifting AC marks along subset chains.** Whether to grow a mechanism that propagates an AC mark from `S` to `T` when `S ⊆ T` and the operator's signatures on `S` and `T` are known to agree on `S`. Deferred until a concrete example shows the per-set restatement is painful.
 - **Recognizing AC up to AC.** Once `+` is AC-marked, a later fact like `∀ a, b, c. a + b + c = c + b + a` is provable (by AC) but not in the canonical commutativity shape. Whether such facts should be silently accepted as redundant or rejected is open.
 
+## File structure and imports
+
+### Decisions so far
+
+- **Imports are top-level statements**, parallel to `let` and `fact`:
+
+  ```
+  import "core/arith.reg"
+  import "../sets/intervals.reg"
+  ```
+
+- **Path is a quoted string**, resolved **relative to the importing file**. The extension is part of the path — no implicit extension, no module-name search path. One sentence of resolution rules.
+- **Flat namespace.** An imported file's top-level `let` and `fact` names are brought into the importer's single global namespace, matching the one-symbol-table rule under Facts. Name collisions are an error.
+- **Precedence fragments merge** across imported files per the rule under *Term order*; inconsistent constraints are an error.
+- **Cycles are an error.** Double-imports are idempotent: a file is loaded once regardless of how many paths reach it.
+- **Transitive exposure.** Importing A, which imports B, exposes B's names to A's importer. (Simplest rule consistent with the flat namespace; revisit if it causes pain.)
+
+### Open questions
+
+- **Qualified import.** `import "foo.reg" as Foo` → `Foo.bar`. Would introduce a second namespace layer that doesn't currently exist; deferred until flat-namespace collisions become painful.
+- **Selective import.** `import {sin, cos} from "trig.reg"`. Deferred.
+- **Search path / standard-library prefix.** `import std/arith` as a second form alongside the relative-path form. Deferred.
+- **Tradeoff to revisit.** Flat-namespace imports match the existing one-symbol-table design and are simplest, but make collisions a real risk as the library grows. Adding qualified imports later would be a breaking change for existing files — flag this if a real example shows several libraries colliding.
+
 ## Other syntax topics
 
-(Pending: file structure, variable binding form for facts.)
+(Pending: variable binding form for facts.)

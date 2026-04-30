@@ -14,7 +14,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Deferrable
 
-- [ ] **File structure / modules / imports.** Single-file examples suffice to start.
 - [ ] **Theorem keyword and proof syntax.** Not needed until proofs are written.
 - [ ] **ASCII fallbacks.** Whether `in`, `subset`, `forall`, etc. are accepted alongside Unicode.
 - [ ] **Sort hierarchy beyond `Set`.** Whether a higher universe is ever needed.
