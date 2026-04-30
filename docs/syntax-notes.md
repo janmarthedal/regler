@@ -450,6 +450,24 @@ precedence: + < · < ^ < f < g
 - **Weight-0 unary symbol.** Whether to expose KBO's allowance for a single weight-0 unary symbol (e.g., for negation or a "free" wrapper). Deferred.
 - **AC-KBO.** AC operators are flattened and sorted before comparison; the exact AC-KBO variant used (and how operand multiset comparison interacts with the lex tiebreak) is deferred to the kernel-implementation phase.
 
+## AC recognition
+
+### Decisions so far
+
+- **Pattern recognition is syntactic, up to obvious normalization.** A fact is recognized as commutativity for `f` if it has the shape `∀ <vars>. f(a, b) = f(b, a)` with `a` and `b` distinct bound variables (α-renaming irrelevant). A fact is recognized as associativity for `f` if it has shape `∀ <vars>. f(f(a, b), c) = f(a, f(b, c))` *or* its mirror `∀ <vars>. f(a, f(b, c)) = f(f(a, b), c)`, with `a`, `b`, `c` distinct bound variables. Side conditions (`if …`) on the fact disqualify it from AC recognition. The kernel does not attempt to prove that an arbitrary fact is logically equivalent to AC — recognition is a syntactic gate, not a semantic one.
+- **Partial AC is tracked with independent flags.** Each operator carries two flags, `commutative` and `associative`, set independently as the corresponding facts are read.
+  - **Associative-only:** applications are flattened to n-ary form; operand order is preserved. Useful for non-commutative operators with associative concat-like behavior (string concatenation, matrix multiplication, function composition).
+  - **Commutative-only:** at fixed binary arity, the two operands are sorted by the kernel's term order. No flattening.
+  - **Both (AC):** flatten to n-ary, then sort operands. This is the case described in `CLAUDE.md`.
+  - Identity-element marking (`CLAUDE.md`) layers on top of whichever flag is set: a left/right identity collapses operands of a flattened (associative or AC) application; for a commutative-only operator, identity rewriting still fires as an auto-oriented rewrite but without n-ary collapse.
+- **Marking is per-(symbol, set).** `fact ∀ x, y ∈ ℝ. x + y = y + x` marks `+` commutative *on ℝ*, not on `+` globally. An application `a + b` is treated as commutative only when both operands' types are subsets of the set `S` over which the AC fact was stated. To get AC on a wider set the user states the fact again at that set; a separate fact relating the two signatures is what would license lifting, and that machinery is not provided.
+  - Consequence: along the ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ chain, commutativity and associativity for arithmetic operators must be stated at the widest set used in practice (typically ℂ) and rely on implicit promotion to bring narrower operands up before the operator applies. A library may state them once at ℂ and once at any narrower set whose closure under the operator the user wants to reason about without promotion.
+
+### Open questions
+
+- **Lifting AC marks along subset chains.** Whether to grow a mechanism that propagates an AC mark from `S` to `T` when `S ⊆ T` and the operator's signatures on `S` and `T` are known to agree on `S`. Deferred until a concrete example shows the per-set restatement is painful.
+- **Recognizing AC up to AC.** Once `+` is AC-marked, a later fact like `∀ a, b, c. a + b + c = c + b + a` is provable (by AC) but not in the canonical commutativity shape. Whether such facts should be silently accepted as redundant or rejected is open.
+
 ## Other syntax topics
 
 (Pending: file structure, variable binding form for facts.)
