@@ -10,7 +10,7 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Important, can be sketched after first examples
 
-- [ ] **Narrowing proof obligations.** When a value is declared in a strict subset (e.g., `let small : Pos = 1/2`), how the kernel checks the membership obligation.
+(none)
 
 ## Deferrable
 

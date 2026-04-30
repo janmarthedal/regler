@@ -27,7 +27,7 @@ When the annotation is omitted, the kernel infers the *smallest containing set*:
 | `(1, 2)`         | `ℕ × ℕ`       |
 | `(x : ℝ) ↦ 2·x`  | `ℝ → ℝ`       |
 
-Writing an explicit annotation that is *wider* than the inferred type is always allowed — the kernel verifies membership via subset coercion. Writing one that is *narrower* (e.g., `let small : Pos = 1/2`) creates a proof obligation; that mechanism is deferred.
+Writing an explicit annotation that is *wider* than the inferred type is always allowed — the kernel verifies membership via subset coercion. Writing one that is *narrower* (e.g., `let small : Pos = 1/2`) creates a proof obligation; see *Narrowing proof obligations* below.
 
 There is no function- or set-definition sugar. A function (or parameterized set) defined by an equation is always written as a declaration plus a `fact`. Sugar may be reintroduced later if it proves consistently useful.
 
@@ -360,7 +360,16 @@ A value declared in a set is automatically a member of every superset (since `�
 
 **Implicit promotion in expressions.** When an operator's operands live in different sets along a known subset chain, the kernel promotes the smaller-set operand to the larger set automatically. `2 + π` (with `2 ∈ ℕ`, `π ∈ ℝ`) is well-formed and has type `ℝ`; no `(2 : ℝ)` annotation is required. Promotion only happens along subset facts the kernel already knows (`ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ` once the relevant facts are in scope); unrelated sets do not get implicitly bridged.
 
-When the declared set is *narrower* than the natural one (`let small : Pos = 1/2`), the kernel must verify the membership obligation. That is a proof obligation, deferred for now.
+When the declared set is *narrower* than the natural one (`let small : Pos = 1/2`), the kernel must verify the membership obligation. See *Narrowing proof obligations* below.
+
+### Narrowing proof obligations
+
+When a value is declared in a strict subset of its inferred type, the kernel discharges the membership obligation using two mechanisms, tried in order:
+
+1. **Decidable-membership fast path.** If the target set has a registered decision procedure for the value's shape, the kernel calls it. This covers the common case: numeric literals against built-in numeric subsets and predicate-defined subsets whose predicate is a decidable comparison on a literal (e.g., `1/2 ∈ Pos` where `Pos = {x ∈ ℚ | x > 0}` reduces to `1/2 > 0`, decidable on rational literals).
+2. **Simplifier discharge.** If no decider applies, the kernel runs the standard simplifier (auto-oriented rewrites, AC normalization, identity-element absorption, literal arithmetic) on the membership obligation and accepts it if it reduces to `True`. Reuses machinery already present for `simplify`.
+
+If both fail, the declaration is rejected with the unreduced obligation as the error. There is no syntax for the user to supply an explicit proof witness yet — that, along with deferred-obligation queues, is left for later.
 
 ### Overload resolution
 
@@ -388,7 +397,6 @@ This rule covers operators whose signatures lie along the ℕ ⊆ ℤ ⊆ ℚ �
 
 ### Open questions
 
-- **Narrowing proof obligations.** When a value is declared in a strict subset, how the kernel checks membership.
 - **Non-chain operator overloading.** Generalizing the resolution rule beyond the ℕ–ℂ subset chain (matrices, polynomial rings, etc.). Deferred until those cases arrive.
 
 ## Queries and rewriting
