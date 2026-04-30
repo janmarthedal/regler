@@ -255,7 +255,7 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 - **One keyword for all asserted statements.** The syntax does not distinguish "axioms" (taken as fundamental) from "definitions" (introducing meaning); both are facts the kernel is told. A future `theorem` keyword may be added for proved statements.
 - **Variables are bound by an explicit `∀` prefix** on the fact's proposition. The math-paper form `∀ x ∈ S. P` is used; multiple variables sharing a sort are comma-separated: `∀ x, y ∈ ℝ. P`. The `∈` here is binding-shorthand even when `S = Set` (as in `∀ S ∈ Set. P`); this is not a propositional membership claim.
 - Other quantifiers (`∃`, nested `∀`) appear *inline* inside the proposition. Only the outermost `∀` interacts with potential future suffix sugar.
-- A fact may carry side conditions with an `if` clause: `<proposition> if <condition>`.
+- A fact may carry side conditions with an `if` clause: `<proposition> if <condition>`. The `<condition>` is a conjunction (`∧`-separated) of atoms, where each atom is a membership (`e ∈ S`), equality (`e = e'`), or comparison (`≠`, `<`, `≤`, `>`, `≥`). Disjunction, negation, and quantifiers are not accepted; widening is deferred until a real example needs it. Widening is monotone — accepting `∨`/`¬`/quantifiers later does not invalidate any fact written under the current rule.
 - **A fact is both a logical claim and a rewrite rule.** Variables bound by the outermost `∀` act as pattern variables when the fact is used as a rewrite. The kernel auto-orients facts whose sides are strictly comparable under its term order; AC marking is earned by stating commutativity and associativity (see `CLAUDE.md` for the kernel-side design).
 - A `for`-suffix sugar (`P for x ∈ S`) — equivalent to wrapping the proposition with an outermost `∀` — may be added later but is not part of the core syntax.
 - **Optional name.** A fact may be given a name with `fact <ident> : <proposition>`. The name is optional — most facts are auto-oriented rewrites that are never invoked by name; naming is only worth the noise when the fact will be referenced in a manual rewrite or query. The `:` parallels the sort annotation in `let name : Sort`; the parser distinguishes named from anonymous facts by lookahead for `<ident> :`. The name applies to the outer fact only — there is no syntax for labelling sub-parts of a proposition.
@@ -270,10 +270,6 @@ fact ∀ x ∈ ℝ. x + 0 = x                                          # equalit
 fact comm_add : ∀ x, y ∈ ℝ. x + y = y + x                        # named fact
 fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with side condition
 ```
-
-### Open questions
-
-- **Condition language.** `if` clauses currently allow conjunctions of membership, equality, inequality. Whether richer logic is permitted (disjunction, negation, quantifiers) is open.
 
 ## Values
 
