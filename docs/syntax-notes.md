@@ -251,7 +251,7 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 
 ### Decisions so far
 
-- Keyword: `fact`. Used to assert any statement the system should treat as given — equalities, subset claims, membership claims, and the defining equations of declared functions and parameterized sets.
+- Keyword: `fact`. Used to assert any statement the system should treat as given — equalities, subset claims, membership claims, the defining equations of declared functions and parameterized sets, and **top-level logical claims** (implications `⇒` and disjunctions `∨` at the outermost level of the proposition, after any leading `∀`). Top-level logical claims are accepted as asserted truths but **do not participate in rewriting** — they are not equalities, so the auto-orientation and AC-recognition machinery does not apply, and they cannot be invoked via `apply`. They become useful once a proof or decision-procedure story exists; until then they are inert as far as `simplify` is concerned. Side conditions on a top-level logical claim use the same `if` clause as elsewhere.
 - **One keyword for all asserted statements.** The syntax does not distinguish "axioms" (taken as fundamental) from "definitions" (introducing meaning); both are facts the kernel is told. A future `theorem` keyword may be added for proved statements.
 - **Variables are bound by an explicit `∀` prefix** on the fact's proposition. The math-paper form `∀ x ∈ S. P` is used; multiple variables sharing a sort are comma-separated: `∀ x, y ∈ ℝ. P`. The `∈` here is binding-shorthand even when `S = Set` (as in `∀ S ∈ Set. P`); this is not a propositional membership claim.
 - Other quantifiers (`∃`, nested `∀`) appear *inline* inside the proposition. Only the outermost `∀` interacts with potential future suffix sugar.
@@ -269,6 +269,7 @@ fact 1/2 ∈ ℚ                                                     # membershi
 fact ∀ x ∈ ℝ. x + 0 = x                                          # equality with bound vars, anonymous
 fact comm_add : ∀ x, y ∈ ℝ. x + y = y + x                        # named fact
 fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with side condition
+fact ∀ a, b ∈ ℤ. a · b = 0 ⇒ a = 0 ∨ b = 0                       # top-level logical claim (inert until proofs exist)
 ```
 
 ## Values
