@@ -20,16 +20,23 @@
 
 - `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers bindings, sets, facts, values.
 - `docs/syntax-open-questions.md` — checklist of syntax decisions still to make.
-- `examples/` — surface-syntax sketches validating the design against milestone 1. Work-in-progress, not type-checked; expect gaps and inconsistencies.
+- `examples/` — surface-syntax sketches exercising the design against the long-term goals. Work-in-progress, not type-checked; expect gaps and inconsistencies.
 
 ## Milestones
 
-1. Design the surface syntax and validate it by writing example files that express each of the long-term goals.
-2. Distill the kernel built-ins and core algorithms implied by the syntax.
-3. Choose a restricted POC scope: simplify a univariate polynomial.
-4. Decide on the implementation language, informed by the kernel's algorithmic needs.
-5. Build lexer, parser, kernel, and REPL covering the POC scope.
-6. Extend and iterate; return to step 1 if a long-term goal cannot be expressed.
+The strategy is to get a working end-to-end spine early, then deepen iteratively. Every milestone from 2 onward adds at least one example file that the implementation actually runs — validation-by-examples is a continuous practice, not a standalone phase.
+
+1. **Choose implementation language and parser approach.** Informed by kernel needs (arbitrary-precision arithmetic, ADTs for terms, Unicode). Hand-written recursive descent is the default for the parser unless a strong reason to use a generator emerges.
+2. **Round-trip REPL on a minimal surface.** Identifiers, integer literals, `+ · ^ = ( )`, `let name = expr`, `fact <expr>`, and a `print` command. Lexer → parser → AST → pretty-printer, with the property `parse(print(t)) == t`. No kernel yet.
+3. **Kernel term representation and `evaluate`.** Internal uniform-prefix terms, substitution, literal arithmetic on ℕ. Adds the `evaluate` command.
+4. **Auto-oriented rewriting.** KBO with default weights = 1; one user-stated equality fires as a rewrite via `simplify`. No AC, no side conditions.
+5. **AC recognition and identity-element marking.** Earn the marks from facts as designed; flatten and sort AC applications.
+6. **Widen numeric tower.** ℤ, ℚ, the subset chain, implicit promotion.
+7. **Side conditions on facts** (`if` clauses), then `apply` and `apply ←`.
+8. **Sets as first-class.** Membership, subset, set-builder — introduced when the first example genuinely needs them (likely with `sin`, `Pos`, etc.).
+9. **Onward, example-driven.** Each long-term goal (derivatives, roots, integrals, ODEs) drives the next surface/kernel additions. Revisit syntax open questions only when an example forces them.
+
+Deferred indefinitely (no milestone slot until an example demands it): set-polymorphic value declarations, user-defined infix operators, theorem/proof syntax, ASCII fallbacks, qualified imports.
 
 ## Long-term goals
 
