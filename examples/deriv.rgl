@@ -1,0 +1,10 @@
+# Work-in-progress: surface-syntax sketch, not type-checked.
+
+import "fun.rgl"
+
+let D: (ℝ ↦ ℝ) ↦ (ℝ ↦ ℝ)
+fact ∀ a ∈ ℝ. D((x: ℝ) ↦ a) = (x: ℝ) ↦ 0
+fact D((x: ℝ) ↦ x) = (x: ℝ) ↦ 1
+fact ∀ f ∈ ℝ ↦ ℝ, g ∈ ℝ ↦ ℝ. D((x: ℝ) ↦ f(x) + g(x)) = (x: ℝ) ↦ D(f)(x) + D(g)(x)
+fact ∀ f ∈ ℝ ↦ ℝ, g ∈ ℝ ↦ ℝ. D((x: ℝ) ↦ f(x)·g(x)) = (x: ℝ) ↦ D(f)(x)·g(x) + f(x)·D(g)(x)
+fact ∀ f ∈ ℝ ↦ ℝ, g ∈ ℝ ↦ ℝ. D((x: ℝ) ↦ f(g(x))) = (x: ℝ) ↦ D(f)(g(x))·D(g)(x)

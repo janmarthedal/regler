@@ -1,0 +1,19 @@
+# Work-in-progress: surface-syntax sketch, not type-checked.
+
+# Eta-contraction
+fact ∀ f ∈ ℝ ↦ ℝ. (x: ℝ) ↦ f(x) = f
+
+# Set-polymorphic value declarations not yet supported
+## Function composition
+#let ∘ : ∀ A, B, C ∈ Set. (B → C) × (A → B) → (A → C)
+#fact ∀ A, B, C ∈ Set, f ∈ B → C, g ∈ A → B, x ∈ A. (f ∘ g)(x) = f(g(x))
+#
+## Identity function and its laws
+#let id : ∀ A ∈ Set. A → A
+#fact ∀ A ∈ Set, x ∈ A. id(x) = x
+#fact ∀ A, B ∈ Set, f ∈ A → B. f ∘ id = f
+#fact ∀ A, B ∈ Set, f ∈ A → B. id ∘ f = f
+#
+## Associativity (earns associative-only marking on ∘)
+#fact ∀ A, B, C, D ∈ Set, f ∈ C → D, g ∈ B → C, h ∈ A → B.
+#  (f ∘ g) ∘ h = f ∘ (g ∘ h)

@@ -20,6 +20,7 @@
 
 - `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers bindings, sets, facts, values.
 - `docs/syntax-open-questions.md` — checklist of syntax decisions still to make.
+- `examples/` — surface-syntax sketches validating the design against milestone 1. Work-in-progress, not type-checked; expect gaps and inconsistencies.
 
 ## Milestones
 

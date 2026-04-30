@@ -1,0 +1,9 @@
+# Work-in-progress: surface-syntax sketch, not type-checked.
+
+fact ∀ a ∈ ℕ. a + 0 = a
+fact ∀ a, b ∈ ℕ. a + b = b + a
+fact ∀ a, b, c ∈ ℕ. (a + b) + c = a + (b + c)
+fact ∀ a ∈ ℕ. a · 1 = a
+fact ∀ a, b ∈ ℕ. a · b = b · a
+fact ∀ a, b, c ∈ ℕ. (a · b) · c = a · (b · c)
+fact ∀ a, b, c ∈ ℕ. a · (b + c) = a · b + a · c

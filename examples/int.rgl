@@ -1,0 +1,11 @@
+# Work-in-progress: surface-syntax sketch, not type-checked.
+
+fact ∀ a ∈ ℤ. a + 0 = a
+fact ∀ a ∈ ℤ. a + -a = 0
+fact ∀ a, b ∈ ℤ. a + b = b + a
+fact ∀ a, b, c ∈ ℤ. (a + b) + c = a + (b + c)
+fact ∀ a ∈ ℤ. a · 1 = a
+fact ∀ a, b ∈ ℤ. a · b = b · a
+fact ∀ a, b, c ∈ ℤ. (a · b) · c = a · (b · c)
+fact ∀ a, b, c ∈ ℤ. a · (b + c) = a · b + a · c
+fact ∀ a, b ∈ ℤ. a · b = 0 ⇒ a = 0 ∨ b = 0
