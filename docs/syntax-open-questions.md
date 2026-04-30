@@ -43,6 +43,7 @@ Grouped by how soon each one blocks writing realistic example files.
 ## Deferrable
 
 - [ ] **Theorem keyword and proof syntax.** Not needed until proofs are written.
+- [ ] **User-configurable infix operators.** A user-defined symbol cannot currently be declared as infix; the fixity table in `syntax-notes.md` is fixed at parser-build time. Open: a `infix <prec> <assoc>` declaration form (or similar), how it interacts with the per-module precedence block, and whether prefix-form use of an infix symbol (`+(a, b)`) is also accepted.
 - [ ] **ASCII fallbacks.** Whether `in`, `subset`, `forall`, etc. are accepted alongside Unicode.
 - [ ] **Sort hierarchy beyond `Set`.** Whether a higher universe is ever needed.
 - [ ] **String literals, printing, I/O.** Only needed for runnable examples.

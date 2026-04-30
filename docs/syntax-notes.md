@@ -110,19 +110,20 @@ Operators are grouped into three layers — terms (numeric and set-valued), atom
 | 2 | function application `f(x, y)` | left |
 | 3 | unary `-x`, logical `¬P` | prefix |
 | 4 | power `x ^ y` | right |
-| 5 | multiplicative `·`, `/` | left |
-| 6 | additive `+`, binary `-` | left |
-| 7 | set difference `\` | left |
-| 8 | set intersection `∩` | left |
-| 9 | set union `∪` | left |
-| 10 | Cartesian product `×` | right |
-| 11 | function arrow `→` | right |
-| 12 | comparisons `=`, `≠`, `<`, `≤`, `>`, `≥`, `∈`, `∉`, `⊆`, `⊇` | non-associative |
-| 13 | conjunction `∧` | left |
-| 14 | disjunction `∨` | left |
-| 15 | implication `⇒` | right |
-| 16 | biconditional `⇔` (if used) | non-associative |
-| 17 | binders: `∀ x ∈ S. P`, `∃ x ∈ S. P`, `λ x : T. body`, `let x : T = e in body`, `if P then a else b` | extends rightward |
+| 5 | function composition `∘` | right |
+| 6 | multiplicative `·`, `/` | left |
+| 7 | additive `+`, binary `-` | left |
+| 8 | set difference `\` | left |
+| 9 | set intersection `∩` | left |
+| 10 | set union `∪` | left |
+| 11 | Cartesian product `×` | right |
+| 12 | function arrow `→` | right |
+| 13 | comparisons `=`, `≠`, `<`, `≤`, `>`, `≥`, `∈`, `∉`, `⊆`, `⊇` | non-associative |
+| 14 | conjunction `∧` | left |
+| 15 | disjunction `∨` | left |
+| 16 | implication `⇒` | right |
+| 17 | biconditional `⇔` (if used) | non-associative |
+| 18 | binders: `∀ x ∈ S. P`, `∃ x ∈ S. P`, `λ x : T. body`, `let x : T = e in body`, `if P then a else b` | extends rightward |
 
 ### Decisions implied by the table
 
@@ -138,7 +139,15 @@ Operators are grouped into three layers — terms (numeric and set-valued), atom
 ### Things deferred
 
 - **Superscript powers** (`x²`) — depends on identifier rules; defer.
-- **Inline `if then else`** is listed at level 17 but its necessity is open; conditional behavior can be encoded via separate facts with `if` side conditions for now.
+- **Inline `if then else`** is listed at level 18 but its necessity is open; conditional behavior can be encoded via separate facts with `if` side conditions for now.
+
+### Infix operators
+
+- **Infix is surface syntax only.** The kernel's internal representation of every compound expression is uniform prefix application `head(args)`. `a + b` is parsed to `+(a, b)`; the printer emits the infix form back. AC recognition, KBO, identity-element marking, pattern matching, and substitution all operate on the prefix form.
+- **The infix token is the head's name.** `+`, `·`, `∘`, `∪`, etc. are themselves the kernel symbols — no separate alphanumeric alias (`add`, `mul`, …) is introduced. A user-declared library symbol that wants to participate in an infix slot uses its own name there: `let ∘ : …` declares the symbol `∘`, which the parser already knows is infix at level 5.
+- **The fixed table.** The precedence table above lists every infix and prefix operator the parser recognizes initially. Adding a new infix operator currently requires editing this table; user-defined fixity is deferred (see `syntax-open-questions.md`).
+- **Prefix-form use of an infix symbol.** Whether `+(a, b)` is accepted as an alternative surface form for `a + b` (useful for higher-order contexts like passing `+` as a function) is open — defer until a real example needs it.
+- **Turnstile `⊢`** is reserved for future theorem/proof syntax; it has no role yet and no precedence slot.
 
 ## Sets
 
