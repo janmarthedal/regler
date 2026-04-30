@@ -258,13 +258,16 @@ let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 - A fact may carry side conditions with an `if` clause: `<proposition> if <condition>`.
 - **A fact is both a logical claim and a rewrite rule.** Variables bound by the outermost `∀` act as pattern variables when the fact is used as a rewrite. The kernel auto-orients facts whose sides are strictly comparable under its term order; AC marking is earned by stating commutativity and associativity (see `CLAUDE.md` for the kernel-side design).
 - A `for`-suffix sugar (`P for x ∈ S`) — equivalent to wrapping the proposition with an outermost `∀` — may be added later but is not part of the core syntax.
+- **Optional name.** A fact may be given a name with `fact <ident> : <proposition>`. The name is optional — most facts are auto-oriented rewrites that are never invoked by name; naming is only worth the noise when the fact will be referenced in a manual rewrite or query. The `:` parallels the sort annotation in `let name : Sort`; the parser distinguishes named from anonymous facts by lookahead for `<ident> :`. The name applies to the outer fact only — there is no syntax for labelling sub-parts of a proposition.
+- **Identifier rules and namespace.** Fact names use the same identifier rules as variables and `let`-bound values, and live in the **same namespace** as `let`-bound names — a fact name shadows a value of the same name and vice versa. One symbol table, no per-keyword namespaces.
 
 ### Forms
 
 ```
-fact ℚ ⊆ ℝ                                                       # subset claim
-fact 1/2 ∈ ℚ                                                     # membership claim
-fact ∀ x ∈ ℝ. x + 0 = x                                      # equality with bound vars
+fact ℚ ⊆ ℝ                                                       # subset claim, anonymous
+fact 1/2 ∈ ℚ                                                     # membership claim, anonymous
+fact ∀ x ∈ ℝ. x + 0 = x                                          # equality with bound vars, anonymous
+fact comm_add : ∀ x, y ∈ ℝ. x + y = y + x                        # named fact
 fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with side condition
 ```
 
