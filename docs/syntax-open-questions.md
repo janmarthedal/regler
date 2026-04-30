@@ -10,8 +10,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Important, can be sketched after first examples
 
-- [ ] **Queries and rewriting syntax.** How a user actually does something — `simplify`, `rewrite using fact_name`, `evaluate`, `prove`. Decide together with the next two items, since they interact.
-- [ ] **Direction of rewriting (manual invocation).** Auto-orientation by term order handles equalities whose sides are strictly comparable. For incomparable equalities (factor/expand pairs, etc.), how the user specifies `→` vs. `←` when invoking a fact manually.
 - [ ] **Term order choice.** Which well-founded term order the kernel uses for auto-orientation (lex, KBO, LPO, …) and how the per-symbol precedence is fixed.
 - [ ] **AC recognition details.** Which fact patterns trigger AC marking, whether partial AC (commutative-only or associative-only) is handled, and how marking interacts with overloaded operators across subset chains.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.

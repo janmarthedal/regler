@@ -394,6 +394,41 @@ This rule covers operators whose signatures lie along the ℕ ⊆ ℤ ⊆ ℚ �
 - **Narrowing proof obligations.** When a value is declared in a strict subset, how the kernel checks membership.
 - **Non-chain operator overloading.** Generalizing the resolution rule beyond the ℕ–ℂ subset chain (matrices, polynomial rings, etc.). Deferred until those cases arrive.
 
+## Queries and rewriting
+
+### Decisions so far
+
+- A small command layer at top level, parallel to `let` and `fact`. Commands are how the user *does* things — they don't introduce names or assert claims, they ask the kernel to compute or transform something.
+- **Expression comes last.** Commands put the operation and its parameters first, the expression they act on at the end. This keeps the verb and any fact names visible at the top of a multi-line invocation, with the expression flowing below.
+- Initial command set:
+  - `simplify <expr>` — apply auto-oriented rewrites, AC normalization, identity-element absorption, and literal arithmetic to a fixed point.
+  - `apply <name> to <expr>` — single manual rewrite step using a named fact.
+  - `evaluate <expr>` — literal arithmetic on ℕ/ℤ/ℚ only; no rewrites fire.
+  - `prove <prop>` — placeholder; deferred until a proof story exists.
+- **Direction of manual rewriting.** `apply <name> to <expr>` uses the fact's as-written orientation (LHS pattern, RHS replacement). `apply ← <name> to <expr>` flips it (RHS pattern, LHS replacement). The `←` is placed before the name so it reads "apply the reverse of `<name>`".
+  - For auto-oriented facts (sides strictly comparable), `apply` re-fires the canonical direction; `apply ←` is the only way to invoke the reverse.
+  - For incomparable equalities (factor/expand pairs, etc.), neither direction is canonical; the user picks per call.
+- **Naming requirement.** `apply` requires a named fact — anonymous facts can only fire via `simplify`. This matches the "name a fact only when you'll invoke it manually" rule under Facts.
+
+### Forms
+
+```
+simplify (x + 0) · (y + y)
+
+apply comm_add to x + y
+
+apply ← log_product to
+    log(x · y · z) + log(w)
+
+evaluate 2^10 + 3·5
+```
+
+### Open questions
+
+- **Localizing a rewrite.** Whether `apply` grows an `at <path>` clause to target a subterm, or whether a separate `rewrite … in … at …` form is needed. Deferred until examples demand it.
+- **Composing commands.** Whether commands chain (`apply f1 to e |> apply f2`) or whether multi-step rewrites are written as a sequence of `let`-bound intermediates. Deferred.
+- **REPL vs. file form.** Whether the same command syntax is used at a REPL prompt and inside a file, or whether the REPL gets a terser prefix. Deferred.
+
 ## Other syntax topics
 
-(Pending: rewriting/queries, file structure, variable binding form for facts.)
+(Pending: file structure, variable binding form for facts.)
