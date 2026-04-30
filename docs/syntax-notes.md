@@ -496,7 +496,3 @@ precedence: + < · < ^ < f < g
 - **Selective import.** `import {sin, cos} from "trig.reg"`. Deferred.
 - **Search path / standard-library prefix.** `import std/arith` as a second form alongside the relative-path form. Deferred.
 - **Tradeoff to revisit.** Flat-namespace imports match the existing one-symbol-table design and are simplest, but make collisions a real risk as the library grows. Adding qualified imports later would be a breaking change for existing files — flag this if a real example shows several libraries colliding.
-
-## Other syntax topics
-
-(Pending: variable binding form for facts.)
