@@ -280,6 +280,7 @@ fact ∀ a, b ∈ ℝ. log(a·b) = log(a) + log(b)   if a > 0 ∧ b > 0  # with 
 - **Annotations are optional when there is an RHS.** A definition `let half = 1/2` is allowed; the kernel infers `ℚ` (smallest containing set; see Bindings). Annotations remain required for declarations without an RHS.
 - **No function-definition sugar.** A function with a defining equation is written as a declaration plus a fact — there is no `let f(x : ℝ) : ℝ = 2·x` form.
 - **No pattern arguments.** Multi-case definitions are written as multiple facts, not as pattern rows. Patterns would add no expressive power and would conflict with the "equalities are foundational" design.
+- **Auto-unfolding only for literal RHS.** A `let name : T = e` definition auto-unfolds `name → e` during simplification iff `e` is a closed ground term built only from literals (numeric literals, and — once they exist — closed compositions thereof). This buys `half + half = 1` for free without erasing names whose RHS is a non-trivial expression (`let discriminant = b^2 - 4·a·c` stays folded). Mechanism: a literal-RHS `let` is treated as an auto-oriented equality; the term order makes the named symbol larger than the literal, so it orients toward the literal automatically. Non-literal-RHS `let` bindings are opaque from the kernel's perspective — to use them as a rewrite, state a separate `fact`. A `let` vs. `def` split (Lean-style) may be reintroduced later if real examples show the literal-RHS rule isn't enough.
 
 ### Forms
 
