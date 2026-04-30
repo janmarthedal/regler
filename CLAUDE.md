@@ -20,6 +20,7 @@
 
 - `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers bindings, sets, facts, values.
 - `docs/syntax-open-questions.md` — checklist of syntax decisions still to make.
+- `docs/changelog.md` — per-version log of program changes, keyed to the version in `Cargo.toml`. Each version bump adds a section describing what changed in that release.
 - `examples/` — surface-syntax sketches exercising the design against the long-term goals. Work-in-progress, not type-checked; expect gaps and inconsistencies.
 
 ## Milestones
