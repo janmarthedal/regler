@@ -429,6 +429,27 @@ evaluate 2^10 + 3·5
 - **Composing commands.** Whether commands chain (`apply f1 to e |> apply f2`) or whether multi-step rewrites are written as a sequence of `let`-bound intermediates. Deferred.
 - **REPL vs. file form.** Whether the same command syntax is used at a REPL prompt and inside a file, or whether the REPL gets a terser prefix. Deferred.
 
+## Term order
+
+### Decisions so far
+
+- **The kernel uses Knuth–Bendix Order (KBO)** as its well-founded term order for auto-orientation. Each symbol has a non-negative weight; comparison is by total weight first, then by precedence on the head, then lexicographically on arguments. This aligns "smaller" with "fewer symbols," matching the user's intuition of simpler. Equalities whose two sides are KBO-incomparable (e.g., distributivity) remain user-invoked.
+- **Per-symbol weights.** Each symbol carries a weight, default `1`, settable at the symbol's declaration site. Variables share a single fixed weight `w₀ = 1`. KBO admissibility allows at most one symbol of weight 0, which must be unary and maximal in precedence; deferred until a use case appears.
+- **Precedence is declared once per module in a `precedence` block.** The block lists symbols in increasing precedence order using `<`. Multiple modules may each contribute a fragment; the kernel assembles a single global precedence by merging the fragments. Inconsistent constraints across modules are an error.
+
+```
+precedence: + < · < ^ < f < g
+```
+
+- **Why a block, not per-symbol numeric annotations.** Precedence is inherently relative; absolute numbers force gap-and-renumber discipline and scatter the global picture across many sites. A single block keeps the order visible in one place and maps directly to KBO's mathematical definition (a strict order on symbols).
+- **Why not implicit declaration order.** Reordering declarations would silently change auto-orientation, and cross-file imports would make the global order fragile.
+
+### Open questions
+
+- **Cross-module merge semantics.** Exact behavior when two modules' precedence fragments conflict (hard error vs. require explicit re-statement at the import site). Deferred until multi-file examples exist.
+- **Weight-0 unary symbol.** Whether to expose KBO's allowance for a single weight-0 unary symbol (e.g., for negation or a "free" wrapper). Deferred.
+- **AC-KBO.** AC operators are flattened and sorted before comparison; the exact AC-KBO variant used (and how operand multiset comparison interacts with the lex tiebreak) is deferred to the kernel-implementation phase.
+
 ## Other syntax topics
 
 (Pending: file structure, variable binding form for facts.)

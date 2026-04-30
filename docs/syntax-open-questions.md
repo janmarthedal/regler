@@ -10,7 +10,6 @@ Grouped by how soon each one blocks writing realistic example files.
 
 ## Important, can be sketched after first examples
 
-- [ ] **Term order choice.** Which well-founded term order the kernel uses for auto-orientation (lex, KBO, LPO, …) and how the per-symbol precedence is fixed.
 - [ ] **AC recognition details.** Which fact patterns trigger AC marking, whether partial AC (commutative-only or associative-only) is handled, and how marking interacts with overloaded operators across subset chains.
 - [ ] **Condition language inside `if`.** Currently conjunctions of membership/equality/inequality; whether `∨`, `¬`, quantifiers are allowed.
 - [ ] **Auto-unfolding of definitions.** Whether `let half : ℚ = 1/2` causes `half` to be unfolded automatically or only when explicitly rewritten.
