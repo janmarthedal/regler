@@ -44,4 +44,5 @@ pub enum Command {
     Let(String, Expr),
     Fact(Expr),
     Print(Expr),
+    Evaluate(Expr),
 }

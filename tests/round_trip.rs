@@ -66,6 +66,8 @@ fn commands() {
     rt_cmd("fact a · (b + c) = a · b + a · c");
     rt_cmd("print x");
     rt_cmd("print a + b · c");
+    rt_cmd("evaluate 2 + 3 · 4");
+    rt_cmd("evaluate x + 2 · 3");
 }
 
 #[test]

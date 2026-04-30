@@ -2,6 +2,19 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.2.0
+
+Milestone 3: kernel term representation and `evaluate`.
+
+- New `kernel` module with a uniform-prefix `Term` ADT (`Nat(BigUint)`, `Var(Symbol)`, `App(Symbol, Vec<Term>)`). Symbols are `Rc<str>`; an interner is deferred until rewriting hot paths exist.
+- Lowering from surface AST to kernel terms. Integer literals lower to `Nat`; binary operators lower to `App` with the operator symbol as head. Negative literals are rejected (no `Int` until ℤ arrives in milestone 6).
+- Capture-free substitution `subst(&Term, &HashMap<Symbol, Term>)` over the kernel. No binders yet, so substitution is a plain tree walk.
+- Bottom-up `evaluate` performing literal arithmetic on ℕ for `+`, `·`, and `^`. Closed integer subterms reduce; symbolic subterms are preserved (e.g. `x + 2 · 3` becomes `x + 6`). Exponents must fit in `u32`.
+- Kernel-to-surface printing reuses the existing pretty-printer by lowering kernel terms back into `ast::Expr`.
+- New `evaluate <expr>` REPL command. `let` bindings are substituted into the expression before evaluation, so `let x = 7` followed by `evaluate x · x + 1` prints `50`.
+- Added `num-traits` dependency for `ToPrimitive` on `BigUint`.
+- Integration tests for arithmetic, big-integer cases, partial symbolic reduction, evaluator identity on purely symbolic inputs, and substitution-resolved bindings.
+
 ## 0.1.0
 
 Milestone 2: round-trip REPL on a minimal surface.

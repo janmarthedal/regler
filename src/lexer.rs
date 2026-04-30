@@ -13,6 +13,7 @@ pub enum Token {
     Let,
     Fact,
     Print,
+    Evaluate,
 }
 
 #[derive(Debug)]
@@ -69,6 +70,7 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
                 "let" => Token::Let,
                 "fact" => Token::Fact,
                 "print" => Token::Print,
+                "evaluate" => Token::Evaluate,
                 _ => Token::Ident(s),
             });
         } else {
