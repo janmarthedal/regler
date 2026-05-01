@@ -2,6 +2,24 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.7.0
+
+Milestone 8: sets as first-class objects, set-builder definitions, and membership discharge.
+
+- **Opaque set declarations.** `let S : Set` declares `S` as an opaque set. No rewrite rule or kernel structure is generated; the declaration is accepted and printed.
+- **Predicate set definitions.** `let Name : Set = {x ∈ S | P}` defines a set by a subset comprehension. The kernel stores the bound variable `x`, domain `S`, and predicate `P`. Sets defined this way participate in the membership-discharge mechanism.
+- **Function signature declarations.** `let f : S → T` declares `f` as a function from `S` to `T`. Accepted and printed; no rewriting machinery is installed for the signature itself.
+- **Subset facts.** `fact S ⊆ T` is parsed and accepted as a `SubsetFact` without installing a rewrite rule. Subset reasoning is stored for future use.
+- **Membership discharge in conditions.** `condition_holds` now handles `e ∈ S` when `S` is a predicate-defined set: it substitutes `e` for the bound variable in `S`'s predicate and checks the result. Numeric comparisons `>`, `<`, `≥`, `≤`, `=` on rational literals and boolean connectives `∧`, `∨` are now all supported in conditions.
+- **Binder-generated conditions.** When `fact ∀ vars ∈ S. body` is installed and `S` is a predicate-defined set, the kernel automatically generates membership side conditions `v ∈ S` for each bound variable `v`. These are merged with any explicit `if` clause. Facts over opaque sets (ℕ, ℤ, ℚ, ℝ, …) are unaffected — their domain annotation remains informational.
+- **`apply` checks conditions.** `apply name to expr` now verifies the named fact's side condition (if any) under the match substitution before rewriting. If the condition is not decidably satisfied at a position, that position is skipped and the search continues into subterms. `apply_eq_conditional` is added to `kernel::rewrite` for this purpose.
+- **Top-down rewriting in `simplify`.** The simplification loop now tries user rewrite rules at the current node *before* recursing into subterms (in addition to the existing post-bottom-up pass). This ensures that rules with compound subterm patterns (e.g. `log(a·b)`) are tried before inner arithmetic reduces the argument.
+- **Function application syntax.** `f(a, b, …)` is now parsed as `Expr::App` and lowered to `Term::App`. `to_surface` converts `Term::App` nodes with non-operator heads back to `Expr::App` for round-trip printing.
+- **Set-builder syntax.** `{x ∈ S | P}` is parsed as `Expr::SetBuilder` and printed faithfully. It cannot be lowered to a kernel term (it is only valid as a definition RHS); other uses produce a lower error.
+- **New surface operators:** `→` (function type, prec 45, right-assoc), `⊆` (subset, prec 40), `∈` (membership, prec 40), `<`, `>`, `≤`, `≥` (comparisons, prec 40). All non-associative at the comparison level.
+- **`Command::Let` extended.** The let command now accepts an optional type annotation and an optional RHS: `let name [: type] [= rhs]`. All three forms (declaration-only, annotation+definition, bare definition) are parsed, printed, and round-trip correctly.
+- New runnable example `examples/log.rgl` exercising the full milestone: `ℝ : Set`, `fact ℚ ⊆ ℝ`, `Pos = {x ∈ ℝ | x > 0}`, `log : Pos → ℝ`, the log-product fact, `apply log_product to log(2·3)` → `log(2) + log(3)`, and `simplify log(2) + log(3)` → `log(6)`.
+
 ## 0.6.0
 
 Milestone 7: side conditions on facts, named facts, and `apply`/`apply ←`.

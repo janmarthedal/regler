@@ -16,6 +16,15 @@ use std::collections::{HashMap, HashSet};
 use crate::kernel::kbo::{kbo, KboOrd};
 use crate::kernel::term::{Symbol, Term};
 
+/// A set defined by a predicate: `{var ∈ domain | pred}`.
+/// Membership `e ∈ S` is checked by substituting `var := e` into `pred`.
+#[derive(Debug, Clone)]
+pub struct PredicateSet {
+    pub var: Symbol,
+    pub domain: Term,
+    pub pred: Term,
+}
+
 /// A rewrite rule oriented by KBO: `lhs` strictly dominates `rhs`. Variables
 /// in `lhs` act as pattern variables. `condition`, if present, must evaluate
 /// to true (under the match substitution) for the rule to fire.
@@ -74,12 +83,14 @@ pub enum FactEffect {
     RightIdentity(Symbol, Term),
     AcPromoted(Symbol),
     AlreadyKnown,
+    SubsetFact,
 }
 
 #[derive(Debug, Default)]
 pub struct Theory {
     pub rules: Vec<Rule>,
     pub named: HashMap<Symbol, NamedFact>,
+    pub predicate_sets: HashMap<Symbol, PredicateSet>,
     ac: HashSet<Symbol>,
     saw_comm: HashSet<Symbol>,
     saw_assoc: HashSet<Symbol>,
@@ -90,6 +101,10 @@ pub struct Theory {
 impl Theory {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn add_predicate_set(&mut self, name: Symbol, var: Symbol, domain: Term, pred: Term) {
+        self.predicate_sets.insert(name, PredicateSet { var, domain, pred });
     }
 
     pub fn is_ac(&self, f: &Symbol) -> bool {
@@ -122,6 +137,10 @@ impl Theory {
         let (l, r) = match t {
             Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => {
                 (&args[0], &args[1])
+            }
+            Term::App(head, _) if head.as_ref() == "⊆" => {
+                // Subset claims are accepted but not used for rewriting yet.
+                return vec![FactEffect::SubsetFact];
             }
             _ => return vec![FactEffect::NotEquality],
         };

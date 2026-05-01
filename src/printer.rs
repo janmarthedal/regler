@@ -7,8 +7,7 @@ enum Side {
     Top,
 }
 
-/// Render an expression to surface syntax, inserting parentheses only where
-/// required by the operator precedence and associativity rules.
+/// Render an expression to surface syntax.
 pub fn print_expr(e: &Expr) -> String {
     let mut out = String::new();
     fmt_expr(e, 0, Side::Top, &mut out);
@@ -17,7 +16,18 @@ pub fn print_expr(e: &Expr) -> String {
 
 pub fn print_command(c: &Command) -> String {
     match c {
-        Command::Let(name, e) => format!("let {} = {}", name, print_expr(e)),
+        Command::Let(name, ty, rhs) => {
+            let mut s = format!("let {name}");
+            if let Some(t) = ty {
+                s.push_str(" : ");
+                s.push_str(&print_expr(t));
+            }
+            if let Some(r) = rhs {
+                s.push_str(" = ");
+                s.push_str(&print_expr(r));
+            }
+            s
+        }
         Command::Fact(name, e, cond) => {
             let mut s = String::from("fact ");
             if let Some(n) = name {
@@ -39,14 +49,21 @@ pub fn print_command(c: &Command) -> String {
     }
 }
 
-/// Recursive worker for `print_expr`. `parent` is the precedence of the
-/// enclosing operator (0 at the top), and `side` records whether this node
-/// sits on the left/right of that parent so we can decide when same-precedence
-/// nesting needs parentheses.
 fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
     match e {
         Expr::Ident(s) => out.push_str(s),
         Expr::Int(n) => out.push_str(&n.to_string()),
+        Expr::App(f, args) => {
+            out.push_str(f);
+            out.push('(');
+            for (i, a) in args.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                fmt_expr(a, 0, Side::Top, out);
+            }
+            out.push(')');
+        }
         Expr::BinOp(op, l, r) => {
             let p = op.prec();
             let needs = p < parent || (p == parent && wrong_side(*op, side));
@@ -64,7 +81,6 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
         }
         Expr::UnaryOp(op, operand) => {
             out.push_str(op.symbol());
-            // Wrap the operand in parens when it is a compound expression.
             let needs = matches!(**operand, Expr::BinOp(_, _, _) | Expr::Forall(_, _, _));
             if needs {
                 out.push('(');
@@ -75,7 +91,6 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
             }
         }
         Expr::Forall(vars, domain, body) => {
-            // Binder: lowest precedence — needs parens when inside any operator.
             let needs = parent > 0;
             if needs {
                 out.push('(');
@@ -90,6 +105,15 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
                 out.push(')');
             }
         }
+        Expr::SetBuilder(var, domain, pred) => {
+            out.push('{');
+            out.push_str(var);
+            out.push_str(" ∈ ");
+            fmt_expr(domain, 0, Side::Top, out);
+            out.push_str(" | ");
+            fmt_expr(pred, 0, Side::Top, out);
+            out.push('}');
+        }
     }
 }
 
@@ -97,10 +121,10 @@ fn wrong_side(op: Op, side: Side) -> bool {
     match (op, side) {
         (_, Side::Top) => false,
         // Right-associative: left operand at same prec needs parens
-        (Op::Pow | Op::Implies, Side::Left) => true,
-        (Op::Pow | Op::Implies, Side::Right) => false,
+        (Op::Pow | Op::Implies | Op::Arrow, Side::Left) => true,
+        (Op::Pow | Op::Implies | Op::Arrow, Side::Right) => false,
         // Non-associative: both sides need parens at same level
-        (Op::Eq | Op::Ne, _) => true,
+        (Op::Eq | Op::Ne | Op::Subset | Op::In | Op::Lt | Op::Gt | Op::Le | Op::Ge, _) => true,
         (_, Side::Right) => true,
         (_, Side::Left) => false,
     }

@@ -4,8 +4,7 @@ use crate::lexer::{tokenize, Token};
 #[derive(Debug)]
 pub struct ParseError(pub String);
 
-/// Parse a single REPL command (e.g. `let x = 1 + 2`) from source text.
-/// Returns `None` for blank/comment-only input.
+/// Parse a single REPL command from source text. Returns `None` for blank/comment-only input.
 pub fn parse_command(src: &str) -> Result<Option<Command>, ParseError> {
     let tokens = tokenize(src).map_err(|e| ParseError(e.0))?;
     if tokens.is_empty() {
@@ -17,7 +16,7 @@ pub fn parse_command(src: &str) -> Result<Option<Command>, ParseError> {
     Ok(Some(cmd))
 }
 
-/// Parse a standalone expression from source text (no surrounding command keyword).
+/// Parse a standalone expression from source text.
 pub fn parse_expr(src: &str) -> Result<Expr, ParseError> {
     let tokens = tokenize(src).map_err(|e| ParseError(e.0))?;
     let mut p = Parser { tokens, pos: 0 };
@@ -71,21 +70,34 @@ impl Parser {
                         )))
                     }
                 };
-                match self.advance() {
-                    Some(Token::Equals) => {}
-                    other => {
-                        return Err(ParseError(format!(
-                            "expected `=` in let-binding, got {other:?}"
-                        )))
+                if matches!(self.peek(), Some(Token::Colon)) {
+                    // `let name : type [= rhs]`
+                    self.advance(); // consume ':'
+                    // Parse type at min_prec 41 so `=` (prec 40) stops it; `→` (prec 45) is included.
+                    let ty = self.parse_expr(41)?;
+                    let rhs = if matches!(self.peek(), Some(Token::Equals)) {
+                        self.advance(); // consume '='
+                        Some(self.parse_expr(0)?)
+                    } else {
+                        None
+                    };
+                    Ok(Command::Let(name, Some(ty), rhs))
+                } else {
+                    // `let name = rhs`
+                    match self.advance() {
+                        Some(Token::Equals) => {}
+                        other => {
+                            return Err(ParseError(format!(
+                                "expected `=` or `:` in let-binding, got {other:?}"
+                            )))
+                        }
                     }
+                    let e = self.parse_expr(0)?;
+                    Ok(Command::Let(name, None, Some(e)))
                 }
-                let e = self.parse_expr(0)?;
-                Ok(Command::Let(name, e))
             }
             Some(Token::Fact) => {
                 self.advance();
-                // Distinguish `fact name : prop` from `fact prop`:
-                // lookahead for Ident followed by Colon.
                 let name = if matches!(self.peek(), Some(Token::Ident(_)))
                     && matches!(self.peek2(), Some(Token::Colon))
                 {
@@ -159,10 +171,9 @@ impl Parser {
         }
     }
 
-    /// If the next token is one of the recognized infix operators, return it
-    /// without consuming.
     fn peek_binop(&self) -> Option<Op> {
         match self.peek()? {
+            Token::Arrow => Some(Op::Arrow),
             Token::Implies => Some(Op::Implies),
             Token::Or => Some(Op::Or),
             Token::And => Some(Op::And),
@@ -173,6 +184,12 @@ impl Parser {
             Token::Caret => Some(Op::Pow),
             Token::Equals => Some(Op::Eq),
             Token::NotEquals => Some(Op::Ne),
+            Token::Subset => Some(Op::Subset),
+            Token::In => Some(Op::In),
+            Token::Lt => Some(Op::Lt),
+            Token::Gt => Some(Op::Gt),
+            Token::Le => Some(Op::Le),
+            Token::Ge => Some(Op::Ge),
             _ => None,
         }
     }
@@ -196,10 +213,9 @@ impl Parser {
         Ok(lhs)
     }
 
-    /// Parse a primary expression: identifier, integer literal,
-    /// parenthesized subexpression, or `∀` binder.
+    /// Parse a primary expression.
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
-        // Unary minus: `-3` folds into a negative literal; `-expr` is UnaryOp::Neg.
+        // Unary minus
         if matches!(self.peek(), Some(Token::Minus)) {
             self.advance();
             if matches!(self.peek(), Some(Token::Int(_))) {
@@ -243,8 +259,65 @@ impl Parser {
             let body = self.parse_expr(0)?;
             return Ok(Expr::Forall(vars, Box::new(domain), Box::new(body)));
         }
+        // `{var ∈ domain | pred}` — set-builder comprehension
+        if matches!(self.peek(), Some(Token::LBrace)) {
+            self.advance();
+            let var = match self.advance() {
+                Some(Token::Ident(s)) => s,
+                other => return Err(ParseError(format!(
+                    "expected variable name in set-builder, got {other:?}"
+                ))),
+            };
+            match self.advance() {
+                Some(Token::In) => {}
+                other => return Err(ParseError(format!(
+                    "expected ∈ in set-builder, got {other:?}"
+                ))),
+            }
+            // Parse domain — stops naturally before `|` (not a binop)
+            let domain = self.parse_expr(0)?;
+            match self.advance() {
+                Some(Token::Bar) => {}
+                other => return Err(ParseError(format!(
+                    "expected `|` in set-builder, got {other:?}"
+                ))),
+            }
+            // Parse predicate — stops naturally before `}`
+            let pred = self.parse_expr(0)?;
+            match self.advance() {
+                Some(Token::RBrace) => {}
+                other => return Err(ParseError(format!(
+                    "expected `}}` in set-builder, got {other:?}"
+                ))),
+            }
+            return Ok(Expr::SetBuilder(var, Box::new(domain), Box::new(pred)));
+        }
         match self.advance() {
-            Some(Token::Ident(s)) => Ok(Expr::Ident(s)),
+            Some(Token::Ident(s)) => {
+                // Check for function application: `f(a, b, ...)`
+                if matches!(self.peek(), Some(Token::LParen)) {
+                    self.advance(); // consume '('
+                    let mut args = vec![];
+                    if !matches!(self.peek(), Some(Token::RParen)) {
+                        loop {
+                            args.push(self.parse_expr(0)?);
+                            if !matches!(self.peek(), Some(Token::Comma)) {
+                                break;
+                            }
+                            self.advance(); // consume ','
+                        }
+                    }
+                    match self.advance() {
+                        Some(Token::RParen) => {}
+                        other => return Err(ParseError(format!(
+                            "expected `)` in function call, got {other:?}"
+                        ))),
+                    }
+                    Ok(Expr::App(s, args))
+                } else {
+                    Ok(Expr::Ident(s))
+                }
+            }
             Some(Token::Int(n)) => Ok(Expr::Int(n)),
             Some(Token::LParen) => {
                 let e = self.parse_expr(0)?;

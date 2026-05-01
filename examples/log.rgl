@@ -1,0 +1,11 @@
+# Milestone 8: sets as first-class, set-builder definitions, membership discharge
+
+let ℝ : Set
+fact ℚ ⊆ ℝ
+let Pos : Set = {x ∈ ℝ | x > 0}
+let log : Pos → ℝ
+fact log_product : ∀ a, b ∈ Pos. log(a·b) = log(a) + log(b)
+# apply uses the as-written direction; conditions 2∈Pos and 3∈Pos are discharged automatically
+apply log_product to log(2·3)
+# simplify fires the KBO-oriented direction (log(a)+log(b) → log(a·b)); conditions also discharged
+simplify log(2) + log(3)

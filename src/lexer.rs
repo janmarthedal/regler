@@ -16,12 +16,21 @@ pub enum Token {
     Or,         // ∨
     Colon,      // :
     LeftArrow,  // ←
+    Arrow,      // →
     ForAll,     // ∀
     In,         // ∈
+    Subset,     // ⊆
     Period,     // .
     Comma,      // ,
     LParen,
     RParen,
+    LBrace,     // {
+    RBrace,     // }
+    Bar,        // |
+    Lt,         // <
+    Gt,         // >
+    Le,         // ≤
+    Ge,         // ≥
     Let,
     Fact,
     Print,
@@ -93,6 +102,33 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
         } else if c == '←' {
             chars.next();
             tokens.push(Token::LeftArrow);
+        } else if c == '→' {
+            chars.next();
+            tokens.push(Token::Arrow);
+        } else if c == '⊆' {
+            chars.next();
+            tokens.push(Token::Subset);
+        } else if c == '≤' {
+            chars.next();
+            tokens.push(Token::Le);
+        } else if c == '≥' {
+            chars.next();
+            tokens.push(Token::Ge);
+        } else if c == '<' {
+            chars.next();
+            tokens.push(Token::Lt);
+        } else if c == '>' {
+            chars.next();
+            tokens.push(Token::Gt);
+        } else if c == '{' {
+            chars.next();
+            tokens.push(Token::LBrace);
+        } else if c == '}' {
+            chars.next();
+            tokens.push(Token::RBrace);
+        } else if c == '|' {
+            chars.next();
+            tokens.push(Token::Bar);
         } else if c == '(' {
             chars.next();
             tokens.push(Token::LParen);
