@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::env;
+use std::fs::File;
 use std::io::{self, BufRead, Write};
 
 use regler::ast::{Command, Expr};
@@ -15,13 +17,29 @@ use regler::printer::{print_command, print_expr};
 /// REPL entry point: reads commands line by line and dispatches them to the
 /// surface-level binding store, fact list, and kernel.
 fn main() -> io::Result<()> {
-    let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut bindings: HashMap<String, Expr> = HashMap::new();
     let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
     let mut facts: Vec<Expr> = Vec::new();
     let mut theory = Theory::new();
 
+    if let Some(path) = env::args().nth(1) {
+        let file = File::open(&path).map_err(|e| io::Error::new(e.kind(), format!("{path}: {e}")))?;
+        for line in io::BufReader::new(file).lines() {
+            let line = line?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            match parse_command(trimmed) {
+                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut facts, &mut theory),
+                Ok(None) => {}
+                Err(err) => println!("parse error: {}", err.0),
+            }
+        }
+    }
+
+    let stdin = io::stdin();
     let mut line = String::new();
     loop {
         write!(stdout, "> ")?;
@@ -36,42 +54,54 @@ fn main() -> io::Result<()> {
             continue;
         }
         match parse_command(trimmed) {
-            Ok(cmd) => match cmd {
-                Command::Let(name, e) => {
-                    println!("{}", print_command(&Command::Let(name.clone(), e.clone())));
-                    match lower(&e) {
-                        Ok(t) => {
-                            kernel_bindings.insert(sym(&name), t);
-                            bindings.insert(name, e);
-                        }
-                        Err(err) => println!("error: {}", err.0),
-                    }
-                }
-                Command::Fact(e) => {
-                    println!("{}", print_command(&Command::Fact(e.clone())));
-                    install_fact(&e, &mut theory);
-                    facts.push(e);
-                }
-                Command::Print(e) => {
-                    let resolved = match &e {
-                        Expr::Ident(name) => bindings.get(name).cloned().unwrap_or(e.clone()),
-                        _ => e.clone(),
-                    };
-                    println!("{}", print_expr(&resolved));
-                }
-                Command::Evaluate(e) => match run_evaluate(&e, &kernel_bindings) {
-                    Ok(out) => println!("{}", out),
-                    Err(msg) => println!("error: {}", msg),
-                },
-                Command::Simplify(e) => match run_simplify(&e, &kernel_bindings, &theory) {
-                    Ok(out) => println!("{}", out),
-                    Err(msg) => println!("error: {}", msg),
-                },
-            },
+            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut facts, &mut theory),
+            Ok(None) => {}
             Err(err) => println!("parse error: {}", err.0),
         }
     }
     Ok(())
+}
+
+/// Dispatch a parsed command, updating all state in place and printing results.
+fn dispatch(
+    cmd: Command,
+    bindings: &mut HashMap<String, Expr>,
+    kernel_bindings: &mut HashMap<Symbol, Term>,
+    facts: &mut Vec<Expr>,
+    theory: &mut Theory,
+) {
+    match cmd {
+        Command::Let(name, e) => {
+            println!("{}", print_command(&Command::Let(name.clone(), e.clone())));
+            match lower(&e) {
+                Ok(t) => {
+                    kernel_bindings.insert(sym(&name), t);
+                    bindings.insert(name, e);
+                }
+                Err(err) => println!("error: {}", err.0),
+            }
+        }
+        Command::Fact(e) => {
+            println!("{}", print_command(&Command::Fact(e.clone())));
+            install_fact(&e, theory);
+            facts.push(e);
+        }
+        Command::Print(e) => {
+            let resolved = match &e {
+                Expr::Ident(name) => bindings.get(name).cloned().unwrap_or(e.clone()),
+                _ => e.clone(),
+            };
+            println!("{}", print_expr(&resolved));
+        }
+        Command::Evaluate(e) => match run_evaluate(&e, kernel_bindings) {
+            Ok(out) => println!("{}", out),
+            Err(msg) => println!("error: {}", msg),
+        },
+        Command::Simplify(e) => match run_simplify(&e, kernel_bindings, theory) {
+            Ok(out) => println!("{}", out),
+            Err(msg) => println!("error: {}", msg),
+        },
+    }
 }
 
 /// Implement the `evaluate` REPL command: lower the surface expression into

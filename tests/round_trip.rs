@@ -9,9 +9,9 @@ fn rt_expr(src: &str) {
 }
 
 fn rt_cmd(src: &str) {
-    let c1 = parse_command(src).expect("first parse");
+    let c1 = parse_command(src).expect("first parse").expect("expected a command");
     let printed = print_command(&c1);
-    let c2 = parse_command(&printed).expect("reparse");
+    let c2 = parse_command(&printed).expect("reparse").expect("expected a command on reparse");
     assert_eq!(c1, c2, "round-trip failed; printed = {printed:?}");
 }
 

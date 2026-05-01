@@ -5,12 +5,16 @@ use crate::lexer::{tokenize, Token};
 pub struct ParseError(pub String);
 
 /// Parse a single REPL command (e.g. `let x = 1 + 2`) from source text.
-pub fn parse_command(src: &str) -> Result<Command, ParseError> {
+/// Returns `None` for blank/comment-only input.
+pub fn parse_command(src: &str) -> Result<Option<Command>, ParseError> {
     let tokens = tokenize(src).map_err(|e| ParseError(e.0))?;
+    if tokens.is_empty() {
+        return Ok(None);
+    }
     let mut p = Parser { tokens, pos: 0 };
     let cmd = p.parse_command()?;
     p.expect_eof()?;
-    Ok(cmd)
+    Ok(Some(cmd))
 }
 
 /// Parse a standalone expression from source text (no surrounding command keyword).

@@ -79,6 +79,9 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
                 "simplify" => Token::Simplify,
                 _ => Token::Ident(s),
             });
+        } else if c == '#' {
+            // line comment — discard the rest of the input
+            break;
         } else {
             return Err(LexError(format!("unexpected character: {c:?}")));
         }
