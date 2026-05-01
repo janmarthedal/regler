@@ -10,6 +10,8 @@ use regler::kernel::term::{sym, Symbol, Term};
 use regler::parser::parse_command;
 use regler::printer::{print_command, print_expr};
 
+/// REPL entry point: reads commands line by line and dispatches them to the
+/// surface-level binding store, fact list, and kernel.
 fn main() -> io::Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -65,6 +67,9 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
+/// Implement the `evaluate` REPL command: lower the surface expression into
+/// a kernel term, substitute previously-`let`-bound names, reduce to a normal
+/// form, and pretty-print the result back as surface syntax.
 fn run_evaluate(e: &Expr, bindings: &HashMap<Symbol, Term>) -> Result<String, String> {
     let t = lower(e).map_err(|err| err.0)?;
     let t = subst(&t, bindings);

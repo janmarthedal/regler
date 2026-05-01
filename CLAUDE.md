@@ -16,6 +16,10 @@
 - **Auto-orientation by term order.** The kernel has a fixed well-founded term order. Any equality whose two sides are strictly comparable under this order is auto-oriented toward the smaller side and applied automatically during simplification — the user does not need to invoke it. Equalities whose sides are incomparable (e.g., factor/expand pairs) remain user-invoked.
 - **Fact = logical claim + rewrite rule.** A `fact` serves both roles. Variables bound by the outermost `∀` act as pattern variables when the fact is used as a rewrite. There is no separate "rule" concept.
 
+## Coding conventions
+
+- **Document function purpose.** Every function should have a comment describing its purpose. Exception: small functions whose purpose is self-evident from the name and signature.
+
 ## Working notes
 
 - `docs/syntax-notes.md` — concrete syntax discussion (tentative). Currently covers bindings, sets, facts, values.

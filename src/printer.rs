@@ -7,6 +7,8 @@ enum Side {
     Top,
 }
 
+/// Render an expression to surface syntax, inserting parentheses only where
+/// required by the operator precedence and associativity rules.
 pub fn print_expr(e: &Expr) -> String {
     let mut out = String::new();
     fmt_expr(e, 0, Side::Top, &mut out);
@@ -22,6 +24,10 @@ pub fn print_command(c: &Command) -> String {
     }
 }
 
+/// Recursive worker for `print_expr`. `parent` is the precedence of the
+/// enclosing operator (0 at the top), and `side` records whether this node
+/// sits on the left/right of that parent so we can decide when same-precedence
+/// nesting needs parentheses.
 fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
     match e {
         Expr::Ident(s) => out.push_str(s),

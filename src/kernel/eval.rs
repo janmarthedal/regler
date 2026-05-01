@@ -6,6 +6,9 @@ use crate::kernel::term::Term;
 #[derive(Debug)]
 pub struct EvalError(pub String);
 
+/// Reduce `t` to a normal form by recursively evaluating arguments and then
+/// folding literal arithmetic on ℕ via `reduce`. Non-numeric applications and
+/// free variables are returned unchanged.
 pub fn evaluate(t: &Term) -> Result<Term, EvalError> {
     match t {
         Term::Nat(_) | Term::Var(_) => Ok(t.clone()),
@@ -19,6 +22,9 @@ pub fn evaluate(t: &Term) -> Result<Term, EvalError> {
     }
 }
 
+/// Apply built-in literal arithmetic: when both arguments are `Nat`, fold
+/// `+`, `·`, and `^` into a single `Nat`. All other shapes are rebuilt as an
+/// application unchanged.
 fn reduce(head: &str, args: Vec<Term>) -> Result<Term, EvalError> {
     if args.len() == 2 {
         if let (Term::Nat(a), Term::Nat(b)) = (&args[0], &args[1]) {

@@ -6,6 +6,9 @@ use crate::kernel::term::Term;
 #[derive(Debug)]
 pub struct UnprintableError(pub String);
 
+/// Lift a kernel term back into the surface AST. Binary applications whose
+/// head matches a known infix operator become `BinOp`; other shapes have no
+/// surface form yet and produce an error.
 pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
     match t {
         Term::Nat(n) => Ok(Expr::Int(BigInt::from(n.clone()))),

@@ -19,6 +19,9 @@ pub enum Token {
 #[derive(Debug)]
 pub struct LexError(pub String);
 
+/// Split `src` into the token stream consumed by the parser. Whitespace is
+/// skipped; identifiers, integer literals, punctuation, and the reserved
+/// command keywords (`let`, `fact`, `print`, `evaluate`) are recognized.
 pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
     let mut chars = src.chars().peekable();
     let mut tokens = Vec::new();
