@@ -49,6 +49,7 @@ fn op_for(head: &str) -> Option<Op> {
         "/" => Some(Op::Div),
         "^" => Some(Op::Pow),
         "=" => Some(Op::Eq),
+        "≠" => Some(Op::Ne),
         _ => None,
     }
 }

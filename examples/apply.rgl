@@ -1,0 +1,39 @@
+# Milestone 7: side conditions and manual rewriting
+
+# ── named facts ──────────────────────────────────────────────────────────────
+
+# KBO-oriented (auto-fires in simplify); named so it can also be applied manually
+fact zero_add : x + 0 = x
+
+# KBO-incomparable (only usable via apply, not by simplify)
+fact distrib : a · (b + c) = a · b + a · c
+
+# ── side-conditioned fact ─────────────────────────────────────────────────────
+
+# This rule (x/y → x) fires only when y ≠ 1.
+# Condition gate: 2 ≠ 1 is true → rule fires; 1 ≠ 1 is false → rule blocked.
+fact div_drop : x / y = x if y ≠ 1
+
+# ── apply: forward and reverse ────────────────────────────────────────────────
+
+# Expand a product: apply distrib left-to-right → x·y + x·2
+apply distrib to x · (y + 2)
+
+# Factor: apply distrib right-to-left → a·(b+c)
+apply ← distrib to a · b + a · c
+
+# ── conditional simplification ────────────────────────────────────────────────
+
+# y = 2 → condition 2 ≠ 1 holds → rule fires → x
+simplify x / 2
+
+# y = 1 → condition 1 ≠ 1 fails → rule blocked → x / 1
+simplify x / 1
+
+# ── named auto-oriented fact fires via simplify ───────────────────────────────
+
+# zero_add is installed as a right-identity mark, so + drops the 0 automatically
+simplify y + 0
+
+# Named fact can also be applied in reverse (un-simplify a step)
+apply ← zero_add to x

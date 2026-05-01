@@ -16,14 +16,23 @@ use std::collections::{HashMap, HashSet};
 use crate::kernel::kbo::{kbo, KboOrd};
 use crate::kernel::term::{Symbol, Term};
 
-/// A rewrite rule oriented by KBO: `lhs` strictly dominates `rhs`, so every
-/// rewrite step strictly decreases the term in the order. Variables in `lhs`
-/// act as pattern variables; KBO orientation guarantees every variable in
-/// `rhs` also appears in `lhs`.
+/// A rewrite rule oriented by KBO: `lhs` strictly dominates `rhs`. Variables
+/// in `lhs` act as pattern variables. `condition`, if present, must evaluate
+/// to true (under the match substitution) for the rule to fire.
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub lhs: Term,
     pub rhs: Term,
+    pub condition: Option<Term>,
+}
+
+/// A named fact stored for user-directed `apply` commands. Preserves the
+/// as-written direction (lhs, rhs) regardless of KBO orientation.
+#[derive(Debug, Clone)]
+pub struct NamedFact {
+    pub lhs: Term,
+    pub rhs: Term,
+    pub condition: Option<Term>,
 }
 
 /// Outcome of trying to install an equality `l = r` as a rewrite rule.
@@ -34,28 +43,25 @@ pub enum Orient {
     Incomparable,
 }
 
-/// Attempt to orient an equality into a rewrite rule by KBO. The larger side
-/// becomes the lhs. Equalities whose two sides are KBO-incomparable cannot be
-/// auto-applied and are reported as such; trivial equalities (`l = l`) are
-/// reported separately.
+/// Attempt to orient an equality into a rewrite rule by KBO.
 pub fn orient(l: &Term, r: &Term) -> Orient {
     match kbo(l, r) {
         KboOrd::Gt => Orient::Rule(Rule {
             lhs: l.clone(),
             rhs: r.clone(),
+            condition: None,
         }),
         KboOrd::Lt => Orient::Rule(Rule {
             lhs: r.clone(),
             rhs: l.clone(),
+            condition: None,
         }),
         KboOrd::Eq => Orient::Trivial,
         KboOrd::Incomparable => Orient::Incomparable,
     }
 }
 
-/// Outcome(s) produced by installing a single fact. One fact may trigger more
-/// than one effect (e.g. installing commutativity may also promote `f` to AC if
-/// associativity was already seen).
+/// Outcome(s) produced by installing a single fact.
 #[derive(Debug)]
 pub enum FactEffect {
     NotEquality,
@@ -73,6 +79,7 @@ pub enum FactEffect {
 #[derive(Debug, Default)]
 pub struct Theory {
     pub rules: Vec<Rule>,
+    pub named: HashMap<Symbol, NamedFact>,
     ac: HashSet<Symbol>,
     saw_comm: HashSet<Symbol>,
     saw_assoc: HashSet<Symbol>,
@@ -97,10 +104,21 @@ impl Theory {
         self.right_id.get(f)
     }
 
-    /// Inspect `t`, recognise commutativity / associativity / identity shapes,
-    /// and otherwise hand the equality off to KBO orientation. Returns every
-    /// effect the install produced so the REPL can report them.
-    pub fn install_fact(&mut self, t: &Term) -> Vec<FactEffect> {
+    /// Install a fact, optionally under a `name` and with a side `condition`.
+    ///
+    /// Named facts are stored as-written (lhs, rhs order preserved) so that
+    /// `apply` can invoke them in either direction. Unnamed facts with
+    /// conditions are stored as conditional rules; unnamed facts without
+    /// conditions follow the existing AC/identity/KBO logic.
+    ///
+    /// AC recognition is suppressed when a condition is present (as per the
+    /// design: side conditions disqualify a fact from AC recognition).
+    pub fn install_fact(
+        &mut self,
+        t: &Term,
+        name: Option<Symbol>,
+        condition: Option<&Term>,
+    ) -> Vec<FactEffect> {
         let (l, r) = match t {
             Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => {
                 (&args[0], &args[1])
@@ -108,21 +126,37 @@ impl Theory {
             _ => return vec![FactEffect::NotEquality],
         };
 
-        if let Some(f) = match_commutativity(l, r) {
-            return self.note_commutativity(f);
+        // Store for named `apply` use regardless of how orientation goes.
+        if let Some(n) = name {
+            self.named.insert(
+                n,
+                NamedFact {
+                    lhs: l.clone(),
+                    rhs: r.clone(),
+                    condition: condition.cloned(),
+                },
+            );
         }
-        if let Some(f) = match_associativity(l, r) {
-            return self.note_associativity(f);
-        }
-        if let Some((f, e)) = match_right_identity(l, r) {
-            return self.note_right_identity(f, e);
-        }
-        if let Some((f, e)) = match_left_identity(l, r) {
-            return self.note_left_identity(f, e);
+
+        // AC recognition is only attempted for unconditional facts.
+        if condition.is_none() {
+            if let Some(f) = match_commutativity(l, r) {
+                return self.note_commutativity(f);
+            }
+            if let Some(f) = match_associativity(l, r) {
+                return self.note_associativity(f);
+            }
+            if let Some((f, e)) = match_right_identity(l, r) {
+                return self.note_right_identity(f, e);
+            }
+            if let Some((f, e)) = match_left_identity(l, r) {
+                return self.note_left_identity(f, e);
+            }
         }
 
         match orient(l, r) {
-            Orient::Rule(rule) => {
+            Orient::Rule(mut rule) => {
+                rule.condition = condition.cloned();
                 self.rules.push(rule);
                 vec![FactEffect::RuleInstalled]
             }
@@ -177,8 +211,6 @@ impl Theory {
         vec![FactEffect::LeftIdentity(f, e)]
     }
 
-    /// Once `f` becomes AC, left and right identity coincide; copy whichever
-    /// side has been seen into the other so `simplify` can absorb either.
     fn merge_identities_after_ac(&mut self, f: &Symbol) {
         if let Some(e) = self.left_id.get(f).cloned() {
             self.right_id.entry(f.clone()).or_insert(e);
@@ -189,7 +221,6 @@ impl Theory {
     }
 }
 
-/// Detect `f(a, b) = f(b, a)` with two distinct pattern variables.
 fn match_commutativity(l: &Term, r: &Term) -> Option<Symbol> {
     let (f, la, lb) = bin_app_of_two_vars(l)?;
     let (g, ra, rb) = bin_app_of_two_vars(r)?;
@@ -203,8 +234,6 @@ fn match_commutativity(l: &Term, r: &Term) -> Option<Symbol> {
     }
 }
 
-/// Detect either `f(f(a, b), c) = f(a, f(b, c))` or its mirror, with three
-/// distinct pattern variables.
 fn match_associativity(l: &Term, r: &Term) -> Option<Symbol> {
     if let Some(f) = assoc_left_to_right(l, r) {
         return Some(f);
@@ -239,8 +268,6 @@ fn assoc_left_to_right(l: &Term, r: &Term) -> Option<Symbol> {
     }
 }
 
-/// Detect `f(x, e) = x` where `x` is a pattern variable and `e` is a closed
-/// (variable-free) term.
 fn match_right_identity(l: &Term, r: &Term) -> Option<(Symbol, Term)> {
     let (f, a, b) = bin_app(l)?;
     let x = as_var(a)?;
@@ -251,7 +278,6 @@ fn match_right_identity(l: &Term, r: &Term) -> Option<(Symbol, Term)> {
     Some((f.clone(), b.clone()))
 }
 
-/// Detect `f(e, x) = x`.
 fn match_left_identity(l: &Term, r: &Term) -> Option<(Symbol, Term)> {
     let (f, a, b) = bin_app(l)?;
     let x = as_var(b)?;

@@ -5,11 +5,14 @@ pub enum Token {
     Ident(String),
     Int(BigInt),
     Plus,
-    Minus,  // -
-    Dot,    // ·
-    Slash,  // /
-    Caret,  // ^
-    Equals, // =
+    Minus,      // -
+    Dot,        // ·
+    Slash,      // /
+    Caret,      // ^
+    Equals,     // =
+    NotEquals,  // ≠
+    Colon,      // :
+    LeftArrow,  // ←
     LParen,
     RParen,
     Let,
@@ -17,15 +20,17 @@ pub enum Token {
     Print,
     Evaluate,
     Simplify,
+    Apply,
+    To,
+    If,
 }
 
 #[derive(Debug)]
 pub struct LexError(pub String);
 
 /// Split `src` into the token stream consumed by the parser. Whitespace is
-/// skipped; identifiers, integer literals, punctuation, and the reserved
-/// command keywords (`let`, `fact`, `print`, `evaluate`, `simplify`) are
-/// recognized.
+/// skipped; identifiers, integer literals, punctuation, and reserved keywords
+/// are recognized.
 pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
     let mut chars = src.chars().peekable();
     let mut tokens = Vec::new();
@@ -51,6 +56,15 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
         } else if c == '=' {
             chars.next();
             tokens.push(Token::Equals);
+        } else if c == '≠' {
+            chars.next();
+            tokens.push(Token::NotEquals);
+        } else if c == ':' {
+            chars.next();
+            tokens.push(Token::Colon);
+        } else if c == '←' {
+            chars.next();
+            tokens.push(Token::LeftArrow);
         } else if c == '(' {
             chars.next();
             tokens.push(Token::LParen);
@@ -85,6 +99,9 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
                 "print" => Token::Print,
                 "evaluate" => Token::Evaluate,
                 "simplify" => Token::Simplify,
+                "apply" => Token::Apply,
+                "to" => Token::To,
+                "if" => Token::If,
                 _ => Token::Ident(s),
             });
         } else if c == '#' {

@@ -39,7 +39,7 @@ fn theory_from_facts(facts: &[&str]) -> Theory {
     let mut t = Theory::new();
     for f in facts {
         let term = lower_str(f);
-        t.install_fact(&term);
+        t.install_fact(&term, None, None);
     }
     t
 }

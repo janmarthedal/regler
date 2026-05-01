@@ -36,6 +36,10 @@ impl Parser {
         self.tokens.get(self.pos)
     }
 
+    fn peek2(&self) -> Option<&Token> {
+        self.tokens.get(self.pos + 1)
+    }
+
     fn advance(&mut self) -> Option<Token> {
         let t = self.tokens.get(self.pos).cloned();
         if t.is_some() {
@@ -55,7 +59,6 @@ impl Parser {
         }
     }
 
-    /// Consume a command keyword and its argument, producing the corresponding `Command`.
     fn parse_command(&mut self) -> Result<Command, ParseError> {
         match self.peek() {
             Some(Token::Let) => {
@@ -81,8 +84,28 @@ impl Parser {
             }
             Some(Token::Fact) => {
                 self.advance();
-                let e = self.parse_expr(0)?;
-                Ok(Command::Fact(e))
+                // Distinguish `fact name : prop` from `fact prop`:
+                // lookahead for Ident followed by Colon.
+                let name = if matches!(self.peek(), Some(Token::Ident(_)))
+                    && matches!(self.peek2(), Some(Token::Colon))
+                {
+                    let name = match self.advance() {
+                        Some(Token::Ident(s)) => s,
+                        _ => unreachable!(),
+                    };
+                    self.advance(); // consume ':'
+                    Some(name)
+                } else {
+                    None
+                };
+                let prop = self.parse_expr(0)?;
+                let cond = if matches!(self.peek(), Some(Token::If)) {
+                    self.advance();
+                    Some(self.parse_expr(0)?)
+                } else {
+                    None
+                };
+                Ok(Command::Fact(name, prop, cond))
             }
             Some(Token::Print) => {
                 self.advance();
@@ -99,14 +122,45 @@ impl Parser {
                 let e = self.parse_expr(0)?;
                 Ok(Command::Simplify(e))
             }
+            Some(Token::Apply) => {
+                self.advance();
+                let reverse = if matches!(self.peek(), Some(Token::LeftArrow)) {
+                    self.advance();
+                    true
+                } else {
+                    false
+                };
+                let name = match self.advance() {
+                    Some(Token::Ident(s)) => s,
+                    other => {
+                        return Err(ParseError(format!(
+                            "expected fact name after `apply`, got {other:?}"
+                        )))
+                    }
+                };
+                match self.advance() {
+                    Some(Token::To) => {}
+                    other => {
+                        return Err(ParseError(format!(
+                            "expected `to` in apply command, got {other:?}"
+                        )))
+                    }
+                }
+                let e = self.parse_expr(0)?;
+                if reverse {
+                    Ok(Command::ApplyRev(name, e))
+                } else {
+                    Ok(Command::Apply(name, e))
+                }
+            }
             other => Err(ParseError(format!(
-                "expected command (let/fact/print/evaluate/simplify), got {other:?}"
+                "expected command (let/fact/print/evaluate/simplify/apply), got {other:?}"
             ))),
         }
     }
 
     /// If the next token is one of the recognized infix operators, return it
-    /// without consuming. Used by the precedence-climbing loop in `parse_expr`.
+    /// without consuming.
     fn peek_binop(&self) -> Option<Op> {
         match self.peek()? {
             Token::Plus => Some(Op::Add),
@@ -115,14 +169,12 @@ impl Parser {
             Token::Slash => Some(Op::Div),
             Token::Caret => Some(Op::Pow),
             Token::Equals => Some(Op::Eq),
+            Token::NotEquals => Some(Op::Ne),
             _ => None,
         }
     }
 
-    /// Precedence-climbing expression parser. Parses an atom, then folds in
-    /// infix operators of precedence at least `min_prec`, recursing with a
-    /// raised bound for left-associative operators and the same bound for
-    /// right-associative ones.
+    /// Precedence-climbing expression parser.
     fn parse_expr(&mut self, min_prec: u8) -> Result<Expr, ParseError> {
         let mut lhs = self.parse_atom()?;
         while let Some(op) = self.peek_binop() {

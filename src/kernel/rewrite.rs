@@ -16,7 +16,8 @@ pub use crate::kernel::theory::{orient, Orient, Rule};
 ///    operands) for any operator the theory has promoted to AC,
 /// 3. binary identity-element absorption for non-AC operators that have an
 ///    identity fact registered,
-/// 4. KBO-oriented rewrite rules.
+/// 4. KBO-oriented rewrite rules (with optional side condition checked before
+///    firing).
 /// Each reduction strictly decreases either the KBO weight or the operand
 /// count, so the loop terminates.
 pub fn simplify(t: &Term, theory: &Theory) -> Term {
@@ -30,6 +31,12 @@ pub fn simplify(t: &Term, theory: &Theory) -> Term {
     };
     for r in &theory.rules {
         if let Some(sigma) = pmatch(&r.lhs, &t1) {
+            if let Some(cond) = &r.condition {
+                let cond_inst = subst(cond, &sigma);
+                if !condition_holds(&cond_inst) {
+                    continue;
+                }
+            }
             let t2 = subst(&r.rhs, &sigma);
             return simplify(&t2, theory);
         }
@@ -37,8 +44,46 @@ pub fn simplify(t: &Term, theory: &Theory) -> Term {
     t1
 }
 
-/// Apply structural normalizations that depend on the theory: AC flatten/sort
-/// for AC operators, and identity-operand absorption otherwise.
+/// Apply the equality `lhs = rhs` as a single rewrite step to `target`,
+/// trying the top level first, then descending leftmost-outermost until the
+/// first matching subterm is found and rewritten. Returns `None` if no
+/// subterm matches.
+pub fn apply_eq(lhs: &Term, rhs: &Term, target: &Term) -> Option<Term> {
+    if let Some(sigma) = pmatch(lhs, target) {
+        return Some(subst(rhs, &sigma));
+    }
+    match target {
+        Term::App(head, args) => {
+            for (i, arg) in args.iter().enumerate() {
+                if let Some(rewritten) = apply_eq(lhs, rhs, arg) {
+                    let mut new_args = args.clone();
+                    new_args[i] = rewritten;
+                    return Some(Term::App(head.clone(), new_args));
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Evaluate a condition term (after substituting the match) and return whether
+/// it is verifiably true. Conservatively returns `false` when the condition
+/// contains unresolved variables — the rule does not fire.
+fn condition_holds(t: &Term) -> bool {
+    match t {
+        Term::App(head, args) if args.len() == 2 => {
+            let a = term_to_rat(&args[0]);
+            let b = term_to_rat(&args[1]);
+            match (head.as_ref(), a, b) {
+                ("≠", Some(a), Some(b)) => a != b,
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
 fn normalize_app(t: Term, theory: &Theory) -> Term {
     let (head, args) = match t {
         Term::App(head, args) => (head, args),
@@ -51,11 +96,6 @@ fn normalize_app(t: Term, theory: &Theory) -> Term {
     }
 }
 
-/// Flatten nested `f`-applications into one operand list, drop any operands
-/// equal to `f`'s identity element, fold contiguous literal operands of `+`/`·`
-/// into a single numeric term, then sort by the canonical term order. Collapses
-/// to the identity (zero operands) or to a lone operand (one operand) when
-/// possible.
 fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     let mut flat: Vec<Term> = Vec::with_capacity(args.len());
     for a in args {
@@ -81,8 +121,6 @@ fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     }
 }
 
-/// Combine all numeric operands of an AC `+` or `·` into a single term,
-/// promoting through ℕ → ℤ → ℚ as needed.
 fn fold_literals(head: &Symbol, flat: &mut Vec<Term>) {
     let is_add = head.as_ref() == "+";
     let is_mul = head.as_ref() == "·";
@@ -114,8 +152,6 @@ fn fold_literals(head: &Symbol, flat: &mut Vec<Term>) {
     }
 }
 
-/// For non-AC operators with a registered identity element, drop a matching
-/// operand from the binary application.
 fn identity_drop_binary(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     if args.len() == 2 {
         if let Some(e) = theory.right_identity(&head) {

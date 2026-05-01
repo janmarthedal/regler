@@ -10,6 +10,7 @@ pub enum Expr {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
     Eq,
+    Ne,
     Add,
     Sub,
     Mul,
@@ -20,7 +21,7 @@ pub enum Op {
 impl Op {
     pub fn prec(self) -> u8 {
         match self {
-            Op::Eq => 1,
+            Op::Eq | Op::Ne => 1,
             Op::Add | Op::Sub => 2,
             Op::Mul | Op::Div => 3,
             Op::Pow => 4,
@@ -34,6 +35,7 @@ impl Op {
     pub fn symbol(self) -> &'static str {
         match self {
             Op::Eq => "=",
+            Op::Ne => "≠",
             Op::Add => "+",
             Op::Sub => "-",
             Op::Mul => "·",
@@ -46,8 +48,13 @@ impl Op {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     Let(String, Expr),
-    Fact(Expr),
+    /// `fact [name :] proposition [if condition]`
+    Fact(Option<String>, Expr, Option<Expr>),
     Print(Expr),
     Evaluate(Expr),
     Simplify(Expr),
+    /// `apply name to expr` — apply named fact LHS→RHS to first matching subterm
+    Apply(String, Expr),
+    /// `apply ← name to expr` — apply named fact RHS→LHS
+    ApplyRev(String, Expr),
 }

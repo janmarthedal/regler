@@ -7,20 +7,18 @@ use regler::ast::{Command, Expr};
 use regler::kernel::eval::evaluate;
 use regler::kernel::lower::lower;
 use regler::kernel::print::to_surface;
-use regler::kernel::rewrite::simplify;
+use regler::kernel::rewrite::{apply_eq, simplify};
 use regler::kernel::subst::subst;
 use regler::kernel::term::{sym, Symbol, Term};
 use regler::kernel::theory::{FactEffect, Theory};
 use regler::parser::parse_command;
 use regler::printer::{print_command, print_expr};
 
-/// REPL entry point: reads commands line by line and dispatches them to the
-/// surface-level binding store, fact list, and kernel.
+/// REPL entry point: reads commands line by line and dispatches them.
 fn main() -> io::Result<()> {
     let mut stdout = io::stdout();
     let mut bindings: HashMap<String, Expr> = HashMap::new();
     let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
-    let mut facts: Vec<Expr> = Vec::new();
     let mut theory = Theory::new();
 
     if let Some(path) = env::args().nth(1) {
@@ -32,7 +30,7 @@ fn main() -> io::Result<()> {
                 continue;
             }
             match parse_command(trimmed) {
-                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut facts, &mut theory),
+                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory),
                 Ok(None) => {}
                 Err(err) => println!("parse error: {}", err.0),
             }
@@ -54,7 +52,7 @@ fn main() -> io::Result<()> {
             continue;
         }
         match parse_command(trimmed) {
-            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut facts, &mut theory),
+            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory),
             Ok(None) => {}
             Err(err) => println!("parse error: {}", err.0),
         }
@@ -67,7 +65,6 @@ fn dispatch(
     cmd: Command,
     bindings: &mut HashMap<String, Expr>,
     kernel_bindings: &mut HashMap<Symbol, Term>,
-    facts: &mut Vec<Expr>,
     theory: &mut Theory,
 ) {
     match cmd {
@@ -81,10 +78,9 @@ fn dispatch(
                 Err(err) => println!("error: {}", err.0),
             }
         }
-        Command::Fact(e) => {
-            println!("{}", print_command(&Command::Fact(e.clone())));
-            install_fact(&e, theory);
-            facts.push(e);
+        Command::Fact(name, e, cond) => {
+            println!("{}", print_command(&Command::Fact(name.clone(), e.clone(), cond.clone())));
+            install_fact(name, &e, cond.as_ref(), theory);
         }
         Command::Print(e) => {
             let resolved = match &e {
@@ -101,12 +97,17 @@ fn dispatch(
             Ok(out) => println!("{}", out),
             Err(msg) => println!("error: {}", msg),
         },
+        Command::Apply(name, e) => match run_apply(&name, &e, false, kernel_bindings, theory) {
+            Ok(out) => println!("{}", out),
+            Err(msg) => println!("error: {}", msg),
+        },
+        Command::ApplyRev(name, e) => match run_apply(&name, &e, true, kernel_bindings, theory) {
+            Ok(out) => println!("{}", out),
+            Err(msg) => println!("error: {}", msg),
+        },
     }
 }
 
-/// Implement the `evaluate` REPL command: lower the surface expression into
-/// a kernel term, substitute previously-`let`-bound names, reduce to a normal
-/// form, and pretty-print the result back as surface syntax.
 fn run_evaluate(e: &Expr, bindings: &HashMap<Symbol, Term>) -> Result<String, String> {
     let t = lower(e).map_err(|err| err.0)?;
     let t = subst(&t, bindings);
@@ -115,9 +116,6 @@ fn run_evaluate(e: &Expr, bindings: &HashMap<Symbol, Term>) -> Result<String, St
     Ok(print_expr(&surface))
 }
 
-/// Implement the `simplify` REPL command: lower, substitute let-bindings,
-/// then reduce by repeatedly applying every auto-oriented rewrite rule and
-/// folding closed literal arithmetic.
 fn run_simplify(
     e: &Expr,
     bindings: &HashMap<Symbol, Term>,
@@ -130,13 +128,48 @@ fn run_simplify(
     Ok(print_expr(&surface))
 }
 
-/// Hand the fact to the theory: it tries commutativity / associativity /
-/// identity-shape recognition first, then falls back to KBO orientation.
-///
-/// Note: `Var`s in a fact are treated as pattern variables, NOT resolved
-/// against `let` bindings — `fact x + 0 = x` orients with `x` as a pattern
-/// variable that matches anything.
-fn install_fact(e: &Expr, theory: &mut Theory) {
+/// Execute `apply [←] name to expr`. When `reverse` is true, the fact's
+/// rhs is used as the pattern and lhs as the replacement.
+fn run_apply(
+    name: &str,
+    e: &Expr,
+    reverse: bool,
+    bindings: &HashMap<Symbol, Term>,
+    theory: &Theory,
+) -> Result<String, String> {
+    let nf = theory
+        .named
+        .get(&sym(name))
+        .ok_or_else(|| format!("no named fact `{name}`"))?;
+
+    let (pat, rhs) = if reverse {
+        (&nf.rhs, &nf.lhs)
+    } else {
+        (&nf.lhs, &nf.rhs)
+    };
+
+    let target = lower(e).map_err(|err| err.0)?;
+    let target = subst(&target, bindings);
+
+    match apply_eq(pat, rhs, &target) {
+        Some(result) => {
+            let surface = to_surface(&result).map_err(|err| err.0)?;
+            Ok(print_expr(&surface))
+        }
+        None => Err(format!(
+            "fact `{name}` does not match any subterm of the expression"
+        )),
+    }
+}
+
+/// Install a fact into the theory. `Var`s in a fact are pattern variables,
+/// NOT resolved against `let` bindings.
+fn install_fact(
+    name: Option<String>,
+    e: &Expr,
+    condition: Option<&Expr>,
+    theory: &mut Theory,
+) {
     let t = match lower(e) {
         Ok(t) => t,
         Err(err) => {
@@ -144,7 +177,16 @@ fn install_fact(e: &Expr, theory: &mut Theory) {
             return;
         }
     };
-    for effect in theory.install_fact(&t) {
+    let cond_term = match condition.map(lower) {
+        Some(Ok(t)) => Some(t),
+        Some(Err(err)) => {
+            println!("note: condition not installed: {}", err.0);
+            return;
+        }
+        None => None,
+    };
+    let sym_name = name.as_deref().map(sym);
+    for effect in theory.install_fact(&t, sym_name, cond_term.as_ref()) {
         match effect {
             FactEffect::NotEquality => {}
             FactEffect::RuleInstalled => {}

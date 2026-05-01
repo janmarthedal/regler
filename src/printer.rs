@@ -18,10 +18,24 @@ pub fn print_expr(e: &Expr) -> String {
 pub fn print_command(c: &Command) -> String {
     match c {
         Command::Let(name, e) => format!("let {} = {}", name, print_expr(e)),
-        Command::Fact(e) => format!("fact {}", print_expr(e)),
+        Command::Fact(name, e, cond) => {
+            let mut s = String::from("fact ");
+            if let Some(n) = name {
+                s.push_str(n);
+                s.push_str(" : ");
+            }
+            s.push_str(&print_expr(e));
+            if let Some(c) = cond {
+                s.push_str(" if ");
+                s.push_str(&print_expr(c));
+            }
+            s
+        }
         Command::Print(e) => format!("print {}", print_expr(e)),
         Command::Evaluate(e) => format!("evaluate {}", print_expr(e)),
         Command::Simplify(e) => format!("simplify {}", print_expr(e)),
+        Command::Apply(name, e) => format!("apply {} to {}", name, print_expr(e)),
+        Command::ApplyRev(name, e) => format!("apply ← {} to {}", name, print_expr(e)),
     }
 }
 
@@ -52,15 +66,12 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
 }
 
 fn wrong_side(op: Op, side: Side) -> bool {
-    // Same-precedence collisions: parenthesize the side that fights associativity.
-    // Left-assoc (+, ·, =-treated-as-non-assoc): right child needs parens.
-    // Right-assoc (^): left child needs parens.
-    // Non-assoc (=): both sides need parens to disambiguate.
     match (op, side) {
         (_, Side::Top) => false,
         (Op::Pow, Side::Left) => true,
         (Op::Pow, Side::Right) => false,
-        (Op::Eq, _) => true,
+        // = and ≠ are non-associative: both sides need parens at same level
+        (Op::Eq | Op::Ne, _) => true,
         (_, Side::Right) => true,
         (_, Side::Left) => false,
     }

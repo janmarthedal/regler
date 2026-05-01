@@ -2,6 +2,21 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.6.0
+
+Milestone 7: side conditions on facts, named facts, and `apply`/`apply ←`.
+
+- **Named facts.** `fact name : proposition` gives a fact an optional name. Named facts are stored in `Theory::named` (a `HashMap<Symbol, NamedFact>`) with the as-written `(lhs, rhs)` direction preserved, independently of how KBO orients the auto-rule. Anonymous facts work exactly as before.
+- **Side conditions.** `fact prop if cond` attaches a condition to a fact. Conditions are arbitrary expressions; `≠` (not-equal) is the first condition operator supported. A conditional auto-rule only fires during `simplify` when the condition is verifiably true under the match substitution — both sides of `≠` must evaluate to distinct numeric literals. When the condition cannot be decided (e.g. a symbolic operand), the rule is conservatively skipped.
+- **`apply name to expr` command.** Applies a named fact in its as-written direction (LHS as pattern, RHS as replacement) to the first matching subterm of `expr`, searching top-down leftmost-outermost. Prints the rewritten term. Prints an error if no subterm matches.
+- **`apply ← name to expr` command.** Same as `apply` but swaps lhs and rhs, letting the user run any fact in reverse regardless of how KBO would orient it. This is the primary mechanism for manually invoking equalities that are KBO-incomparable (factor/expand pairs, etc.).
+- **AC recognition is suppressed for conditional facts.** A fact whose shape matches commutativity or associativity is only promoted to an AC mark when it carries no `if` clause, matching the design note in `CLAUDE.md`.
+- **New `Op::Ne` (`≠`) surface operator** at the same precedence level as `=` (non-associative). Recognized by the lexer as the Unicode character `≠`; printed and parsed identically; lowered to `App("≠", [l, r])` in the kernel.
+- **New tokens and keywords:** `≠` (NotEquals), `:` (Colon), `←` (LeftArrow), `apply`, `to`, `if`.
+- **`Rule` gains `condition: Option<Term>`.** Existing code that constructs `Rule` values via `orient` is unaffected — `orient` always sets `condition: None`; the condition is attached separately during `install_fact`.
+- New runnable example `examples/apply.rgl` demonstrating named facts, forward and reverse `apply`, and conditional rules firing or being blocked by the `≠` gate.
+- Integration tests in `tests/apply.rs` covering: `apply_eq` top-level and subterm matching, no-match returning `None`, reverse application, named and anonymous fact parsing/printing round-trips, conditional fact round-trips, `apply`/`apply ←` command parsing/printing, condition gate (fires for non-zero literal, blocked for zero and for symbolic), named fact storage in theory, and commutativity-shaped named fact not installing a rule.
+
 ## 0.5.0
 
 Milestone 6: widen numeric tower to ℤ and ℚ.
