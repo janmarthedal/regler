@@ -2,6 +2,17 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.3.0
+
+Milestone 4: auto-oriented rewriting.
+
+- KBO (Knuth-Bendix order) with default weight 1 for every variable, every numeric literal, and every function symbol. Comparison enforces the standard variable-count constraint. Precedence on App heads orders the four built-ins as `= < + < · < ^` (mirroring surface precedence); unknown heads fall back to byte-wise string order and rank above the built-ins.
+- Pattern matching against kernel terms: every `Var` in a pattern is a pattern variable, repeated occurrences must bind to syntactically equal terms, and matching is functional (no rollback hazards on partial failure).
+- New `Rule { lhs, rhs }` and `orient` API: an equality is auto-oriented toward its KBO-smaller side. KBO-incomparable equalities (e.g. commutativity `a + b = b + a`) and trivial equalities (`x = x`) report a note and install no rule. The KBO orientation guarantees every variable in `rhs` also appears in `lhs`, so equalities like `x = y` are correctly rejected.
+- New `simplify` REPL command: lower → substitute `let` bindings → repeatedly apply every installed rule plus closed literal arithmetic on ℕ, until fixed point. Both rewriting and arithmetic strictly decrease the term in KBO, so the loop terminates.
+- `fact` now lowers the surface expression and, if it is an equality at the root, attempts to install it as a rule. Non-equality facts are stored unchanged. `Var`s inside a fact are pattern variables and are NOT resolved against `let` bindings — `fact x + 0 = x` orients with `x` as a free pattern variable.
+- Integration tests covering KBO direction, incomparability for commutativity, orientation regardless of written direction, rejection of unbound-rhs equalities, rejection of trivial equalities, rewriting under context, rewrite/arithmetic interleaving, let-binding resolution before rewriting, and round-trip parsing of the new `simplify` command.
+
 ## 0.2.0
 
 Milestone 3: kernel term representation and `evaluate`.

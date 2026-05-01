@@ -45,4 +45,5 @@ pub enum Command {
     Fact(Expr),
     Print(Expr),
     Evaluate(Expr),
+    Simplify(Expr),
 }

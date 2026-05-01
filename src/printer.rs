@@ -21,6 +21,7 @@ pub fn print_command(c: &Command) -> String {
         Command::Fact(e) => format!("fact {}", print_expr(e)),
         Command::Print(e) => format!("print {}", print_expr(e)),
         Command::Evaluate(e) => format!("evaluate {}", print_expr(e)),
+        Command::Simplify(e) => format!("simplify {}", print_expr(e)),
     }
 }
 

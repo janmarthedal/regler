@@ -5,6 +5,7 @@ use regler::ast::{Command, Expr};
 use regler::kernel::eval::evaluate;
 use regler::kernel::lower::lower;
 use regler::kernel::print::to_surface;
+use regler::kernel::rewrite::{orient, simplify, Orient, Rule};
 use regler::kernel::subst::subst;
 use regler::kernel::term::{sym, Symbol, Term};
 use regler::parser::parse_command;
@@ -18,6 +19,7 @@ fn main() -> io::Result<()> {
     let mut bindings: HashMap<String, Expr> = HashMap::new();
     let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
     let mut facts: Vec<Expr> = Vec::new();
+    let mut rules: Vec<Rule> = Vec::new();
 
     let mut line = String::new();
     loop {
@@ -46,6 +48,7 @@ fn main() -> io::Result<()> {
                 }
                 Command::Fact(e) => {
                     println!("{}", print_command(&Command::Fact(e.clone())));
+                    install_fact(&e, &mut rules);
                     facts.push(e);
                 }
                 Command::Print(e) => {
@@ -59,11 +62,14 @@ fn main() -> io::Result<()> {
                     Ok(out) => println!("{}", out),
                     Err(msg) => println!("error: {}", msg),
                 },
+                Command::Simplify(e) => match run_simplify(&e, &kernel_bindings, &rules) {
+                    Ok(out) => println!("{}", out),
+                    Err(msg) => println!("error: {}", msg),
+                },
             },
             Err(err) => println!("parse error: {}", err.0),
         }
     }
-    let _ = facts;
     Ok(())
 }
 
@@ -76,4 +82,48 @@ fn run_evaluate(e: &Expr, bindings: &HashMap<Symbol, Term>) -> Result<String, St
     let t = evaluate(&t).map_err(|err| err.0)?;
     let surface = to_surface(&t).map_err(|err| err.0)?;
     Ok(print_expr(&surface))
+}
+
+/// Implement the `simplify` REPL command: lower, substitute let-bindings,
+/// then reduce by repeatedly applying every auto-oriented rewrite rule and
+/// folding closed literal arithmetic.
+fn run_simplify(
+    e: &Expr,
+    bindings: &HashMap<Symbol, Term>,
+    rules: &[Rule],
+) -> Result<String, String> {
+    let t = lower(e).map_err(|err| err.0)?;
+    let t = subst(&t, bindings);
+    let t = simplify(&t, rules);
+    let surface = to_surface(&t).map_err(|err| err.0)?;
+    Ok(print_expr(&surface))
+}
+
+/// Try to install a fact as an auto-oriented rewrite rule. If the fact is an
+/// equality whose two sides are KBO-comparable, the larger side becomes the
+/// rule's lhs. Equalities whose sides are KBO-incomparable, or facts that are
+/// not equalities, are stored without producing a rule.
+///
+/// Note: `Var`s in a fact are treated as pattern variables, NOT resolved
+/// against `let` bindings — `fact x + 0 = x` orients with `x` as a pattern
+/// variable that matches anything.
+fn install_fact(e: &Expr, rules: &mut Vec<Rule>) {
+    let t = match lower(e) {
+        Ok(t) => t,
+        Err(err) => {
+            println!("note: fact not installed as rule: {}", err.0);
+            return;
+        }
+    };
+    let (l, r) = match &t {
+        Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => (&args[0], &args[1]),
+        _ => return,
+    };
+    match orient(l, r) {
+        Orient::Rule(rule) => rules.push(rule),
+        Orient::Trivial => println!("note: trivial equality, no rule installed"),
+        Orient::Incomparable => {
+            println!("note: equality is KBO-incomparable, no rule installed")
+        }
+    }
 }

@@ -68,6 +68,8 @@ fn commands() {
     rt_cmd("print a + b · c");
     rt_cmd("evaluate 2 + 3 · 4");
     rt_cmd("evaluate x + 2 · 3");
+    rt_cmd("simplify a + 0");
+    rt_cmd("simplify (x + 0) · y");
 }
 
 #[test]

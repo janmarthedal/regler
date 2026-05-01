@@ -90,8 +90,13 @@ impl Parser {
                 let e = self.parse_expr(0)?;
                 Ok(Command::Evaluate(e))
             }
+            Some(Token::Simplify) => {
+                self.advance();
+                let e = self.parse_expr(0)?;
+                Ok(Command::Simplify(e))
+            }
             other => Err(ParseError(format!(
-                "expected command (let/fact/print/evaluate), got {other:?}"
+                "expected command (let/fact/print/evaluate/simplify), got {other:?}"
             ))),
         }
     }
