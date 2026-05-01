@@ -32,6 +32,8 @@
 
 The strategy is to get a working end-to-end spine early, then deepen iteratively. Every milestone from 2 onward adds at least one example file that the implementation actually runs — validation-by-examples is a continuous practice, not a standalone phase.
 
+### Completed
+
 1. **Choose implementation language and parser approach.** Informed by kernel needs (arbitrary-precision arithmetic, ADTs for terms, Unicode). Hand-written recursive descent is the default for the parser unless a strong reason to use a generator emerges.
 2. **Round-trip REPL on a minimal surface.** Identifiers, integer literals, `+ · ^ = ( )`, `let name = expr`, `fact <expr>`, and a `print` command. Lexer → parser → AST → pretty-printer, with the property `parse(print(t)) == t`. No kernel yet.
 3. **Kernel term representation and `evaluate`.** Internal uniform-prefix terms, substitution, literal arithmetic on ℕ. Adds the `evaluate` command.
@@ -40,7 +42,24 @@ The strategy is to get a working end-to-end spine early, then deepen iteratively
 6. **Widen numeric tower.** ℤ, ℚ, the subset chain, implicit promotion.
 7. **Side conditions on facts** (`if` clauses), then `apply` and `apply ←`.
 8. **Sets as first-class.** Membership, subset, set-builder — introduced when the first example genuinely needs them (likely with `sin`, `Pos`, etc.).
-9. **Onward, example-driven.** Each long-term goal (derivatives, roots, integrals, ODEs) drives the next surface/kernel additions. Revisit syntax open questions only when an example forces them.
+
+### Upcoming
+
+9. **Partial AC normalization.** The `saw_comm` and `saw_assoc` flags are already tracked independently, but only the fully-promoted AC case drives normalization. This milestone wires up the partial behaviors: associativity-only flattens nested applications to n-ary form (order preserved); commutativity-only sorts the two arguments of a binary application by the kernel's term order. Both compose correctly with identity-element dropping. No new surface syntax. Adds tests for assoc-only (e.g. `∘`), comm-only, and identity interactions in both partial cases.
+
+10. **Complex numbers.** No new language features — uses only the existing set and rewriting machinery. Adds `ℂ : Set`, `fact ℝ ⊆ ℂ`, `let i : ℂ`, `fact i·i = -1`, and commutativity/associativity for `+` and `·` on ℂ. New runnable example `examples/complex.rgl` demonstrating: `simplify (1 + i)·(1 - i)` → `2`, `simplify i^4` → `1`.
+
+11. **Multi-line input and imports.** Files are parsed statement-by-statement using indentation-based continuation (a non-empty line whose indent exceeds its statement's first line is a continuation). `import "path.rgl"` loads a file relative to the importing file, brings its names into the flat namespace, and is idempotent; cycles are an error. The REPL keeps its line-at-a-time behaviour. Adds standard library files (e.g. `lib/complex.rgl`) that subsequent examples can import.
+
+12. **Lambda expressions and beta reduction.** `(x : T) ↦ body` is added to the AST, parser, and printer. Beta reduction fires in `simplify`. Pattern matching in facts can match lambda-headed patterns, enabling higher-order operators like `D` and `∫` to be defined by rewrite rules. Open question: scope of this milestone (lambda as definition RHS vs. lambda only in facts).
+
+13. **Derivatives.** `D` declared as `(ℝ → ℝ) → (ℝ → ℝ)`. Facts for: constant rule, identity rule, linearity, product rule, chain rule, and known derivatives (`sin`, `cos`, `exp`, `log`). `simplify` computes symbolic derivatives of polynomial and composed expressions. New runnable example `examples/deriv.rgl`.
+
+14. **Polynomial roots.** Introduces `√` as a declared function with characterizing fact (`√(x)^2 = x if x ≥ 0`). Handles linear and quadratic equations. Open question: new `solve` command vs. purely fact-and-apply approach; representation of two roots (± notation or set of roots). New runnable example `examples/roots.rgl`.
+
+15. **Indefinite integrals.** `∫` declared as `(ℝ → ℝ) → (ℝ → ℝ)`. Facts for: power rule, linearity, and integrals of basic trigonometric functions. `simplify` computes indefinite integrals of polynomial and simple trigonometric expressions. New runnable example `examples/int.rgl`.
+
+16. **Onward, example-driven.** ODEs and further goals once differentiation and integration are solid. Each new long-term goal drives the next surface/kernel additions.
 
 Deferred indefinitely (no milestone slot until an example demands it): set-polymorphic value declarations, user-defined infix operators, theorem/proof syntax, ASCII fallbacks, qualified imports.
 
