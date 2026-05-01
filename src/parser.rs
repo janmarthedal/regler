@@ -1,4 +1,4 @@
-use crate::ast::{Command, Expr, Op};
+use crate::ast::{Command, Expr, Op, UnaryOp};
 use crate::lexer::{tokenize, Token};
 
 #[derive(Debug)]
@@ -163,6 +163,9 @@ impl Parser {
     /// without consuming.
     fn peek_binop(&self) -> Option<Op> {
         match self.peek()? {
+            Token::Implies => Some(Op::Implies),
+            Token::Or => Some(Op::Or),
+            Token::And => Some(Op::And),
             Token::Plus => Some(Op::Add),
             Token::Minus => Some(Op::Sub),
             Token::Dot => Some(Op::Mul),
@@ -193,18 +196,52 @@ impl Parser {
         Ok(lhs)
     }
 
-    /// Parse a primary expression: identifier, integer literal, or
-    /// parenthesized subexpression.
+    /// Parse a primary expression: identifier, integer literal,
+    /// parenthesized subexpression, or `∀` binder.
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
-        // Unary minus on integer literals only: `-3` folds into a negative literal.
+        // Unary minus: `-3` folds into a negative literal; `-expr` is UnaryOp::Neg.
         if matches!(self.peek(), Some(Token::Minus)) {
             self.advance();
-            return match self.advance() {
-                Some(Token::Int(n)) => Ok(Expr::Int(-n)),
-                other => Err(ParseError(format!(
-                    "expected integer after unary `-`, got {other:?}"
+            if matches!(self.peek(), Some(Token::Int(_))) {
+                return match self.advance() {
+                    Some(Token::Int(n)) => Ok(Expr::Int(-n)),
+                    _ => unreachable!(),
+                };
+            }
+            let operand = self.parse_atom()?;
+            return Ok(Expr::UnaryOp(UnaryOp::Neg, Box::new(operand)));
+        }
+        // `∀ var, var, … ∈ domain. body`
+        if matches!(self.peek(), Some(Token::ForAll)) {
+            self.advance();
+            let mut vars = vec![];
+            loop {
+                match self.advance() {
+                    Some(Token::Ident(s)) => vars.push(s),
+                    other => return Err(ParseError(format!(
+                        "expected variable name in ∀ binding, got {other:?}"
+                    ))),
+                }
+                if !matches!(self.peek(), Some(Token::Comma)) {
+                    break;
+                }
+                self.advance(); // consume ','
+            }
+            match self.advance() {
+                Some(Token::In) => {}
+                other => return Err(ParseError(format!(
+                    "expected ∈ after variables in ∀ binding, got {other:?}"
                 ))),
-            };
+            }
+            let domain = self.parse_expr(0)?;
+            match self.advance() {
+                Some(Token::Period) => {}
+                other => return Err(ParseError(format!(
+                    "expected '.' after domain in ∀ binding, got {other:?}"
+                ))),
+            }
+            let body = self.parse_expr(0)?;
+            return Ok(Expr::Forall(vars, Box::new(domain), Box::new(body)));
         }
         match self.advance() {
             Some(Token::Ident(s)) => Ok(Expr::Ident(s)),

@@ -1,6 +1,6 @@
 use num_bigint::BigInt;
 
-use crate::ast::{Expr, Op};
+use crate::ast::{Expr, Op, UnaryOp};
 use crate::kernel::term::Term;
 
 #[derive(Debug)]
@@ -20,6 +20,10 @@ pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
         )),
         Term::Var(s) => Ok(Expr::Ident(s.to_string())),
         Term::App(head, args) => match (op_for(head), args.as_slice()) {
+            (_, [e]) if head.as_ref() == "-" => Ok(Expr::UnaryOp(
+                UnaryOp::Neg,
+                Box::new(to_surface(e)?),
+            )),
             (Some(op), [l, r]) => Ok(Expr::BinOp(
                 op,
                 Box::new(to_surface(l)?),

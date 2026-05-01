@@ -24,6 +24,11 @@ pub fn evaluate(t: &Term) -> Result<Term, EvalError> {
 /// arguments are numeric, fold them — promoting to the widest type needed.
 /// For `^`: fold only when base and exponent are both `Nat`.
 fn reduce(head: &str, args: Vec<Term>) -> Result<Term, EvalError> {
+    if args.len() == 1 && head == "-" {
+        if let Some(a) = term_to_rat(&args[0]) {
+            return Ok(rat_to_term(-a));
+        }
+    }
     if args.len() == 2 {
         match head {
             "+" | "-" | "·" | "/" => {

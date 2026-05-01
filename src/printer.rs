@@ -62,15 +62,44 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
                 out.push(')');
             }
         }
+        Expr::UnaryOp(op, operand) => {
+            out.push_str(op.symbol());
+            // Wrap the operand in parens when it is a compound expression.
+            let needs = matches!(**operand, Expr::BinOp(_, _, _) | Expr::Forall(_, _, _));
+            if needs {
+                out.push('(');
+            }
+            fmt_expr(operand, 0, Side::Top, out);
+            if needs {
+                out.push(')');
+            }
+        }
+        Expr::Forall(vars, domain, body) => {
+            // Binder: lowest precedence — needs parens when inside any operator.
+            let needs = parent > 0;
+            if needs {
+                out.push('(');
+            }
+            out.push_str("∀ ");
+            out.push_str(&vars.join(", "));
+            out.push_str(" ∈ ");
+            fmt_expr(domain, 0, Side::Top, out);
+            out.push_str(". ");
+            fmt_expr(body, 0, Side::Top, out);
+            if needs {
+                out.push(')');
+            }
+        }
     }
 }
 
 fn wrong_side(op: Op, side: Side) -> bool {
     match (op, side) {
         (_, Side::Top) => false,
-        (Op::Pow, Side::Left) => true,
-        (Op::Pow, Side::Right) => false,
-        // = and ≠ are non-associative: both sides need parens at same level
+        // Right-associative: left operand at same prec needs parens
+        (Op::Pow | Op::Implies, Side::Left) => true,
+        (Op::Pow | Op::Implies, Side::Right) => false,
+        // Non-associative: both sides need parens at same level
         (Op::Eq | Op::Ne, _) => true,
         (_, Side::Right) => true,
         (_, Side::Left) => false,

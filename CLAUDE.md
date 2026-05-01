@@ -18,6 +18,7 @@
 
 ## Coding conventions
 
+- **Consult `docs/syntax-notes.md` first.** Before making any design or implementation decision — new syntax, operator precedence, AST nodes, surface forms, fact shapes, command syntax — read `docs/syntax-notes.md`. It records the authoritative decisions and open questions for the concrete syntax. Do not invent or guess syntax rules that may already be decided there.
 - **Document function purpose.** Every function should have a comment describing its purpose. Exception: small functions whose purpose is self-evident from the name and signature.
 
 ## Working notes

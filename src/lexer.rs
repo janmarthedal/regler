@@ -11,8 +11,15 @@ pub enum Token {
     Caret,      // ^
     Equals,     // =
     NotEquals,  // ≠
+    Implies,    // ⇒
+    And,        // ∧
+    Or,         // ∨
     Colon,      // :
     LeftArrow,  // ←
+    ForAll,     // ∀
+    In,         // ∈
+    Period,     // .
+    Comma,      // ,
     LParen,
     RParen,
     Let,
@@ -59,6 +66,27 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
         } else if c == '≠' {
             chars.next();
             tokens.push(Token::NotEquals);
+        } else if c == '⇒' {
+            chars.next();
+            tokens.push(Token::Implies);
+        } else if c == '∧' {
+            chars.next();
+            tokens.push(Token::And);
+        } else if c == '∨' {
+            chars.next();
+            tokens.push(Token::Or);
+        } else if c == '∀' {
+            chars.next();
+            tokens.push(Token::ForAll);
+        } else if c == '∈' {
+            chars.next();
+            tokens.push(Token::In);
+        } else if c == '.' {
+            chars.next();
+            tokens.push(Token::Period);
+        } else if c == ',' {
+            chars.next();
+            tokens.push(Token::Comma);
         } else if c == ':' {
             chars.next();
             tokens.push(Token::Colon);
