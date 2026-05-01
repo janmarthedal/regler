@@ -5,4 +5,5 @@ pub mod eval;
 pub mod print;
 pub mod kbo;
 pub mod pmatch;
+pub mod theory;
 pub mod rewrite;

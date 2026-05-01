@@ -2,6 +2,19 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.4.0
+
+Milestone 5: AC recognition and identity-element marking.
+
+- New `kernel::theory::Theory` value gathers facts into the kernel's working theory: rewrite rules earned by KBO orientation, AC marks, and identity-element marks. `Theory::install_fact` recognises shape-specific facts (commutativity, associativity, left/right identity) before falling back to KBO orientation, and reports every effect a fact produced so the REPL can print notes (e.g. ``recognised commutativity for `+` ``, ``` `+` promoted to AC ```).
+- AC marking is earned dynamically: when both a commutativity-shape fact (`f(a,b) = f(b,a)`) and an associativity-shape fact (`f(f(a,b),c) = f(a,f(b,c))`, in either direction) have been seen for the same `f`, `f` is promoted to AC. Neither fact installs a rewrite rule on its own — they only set the marks.
+- Identity-element marking is earned similarly. `f(x, e) = x` registers `e` as a right identity for `f`; `f(e, x) = x` registers a left identity. When `f` is AC the two coincide, so a single fact covers both sides.
+- `simplify` now takes a `&Theory` and applies, in order: literal arithmetic on ℕ, AC normalisation for AC heads (flatten nested same-head applications, drop identity operands, fold contiguous numeric operands of `+`/`·`, sort by the canonical term order, collapse 0/1-operand results), binary identity-operand absorption for non-AC heads, and KBO-oriented rewrite rules.
+- `Term` now derives `Ord` for canonical sorting. Variant order is `App < Var < Nat`, which puts numeric constants last in printed output (`a + 5`, not `5 + a`).
+- The kernel-to-surface printer now refolds n-ary applications with binary-op heads into left-associative binary chains so AC-flattened terms still round-trip to readable surface syntax.
+- New runnable example `examples/ac.rgl` exercising commutativity, associativity, identity, AC normalisation, and literal folding for both `+` and `·` against the actual REPL.
+- Integration tests covering: commutativity-only and associativity-only do not promote, AC promotion canonicalises operand order, AC literal folding, identity-operand absorption inside AC operators, AC collapse to a lone operand or to the identity element, AC for `·` independent of `+`, non-AC left-identity dropping, and AC unifying the two identity sides from a single right-identity fact.
+
 ## 0.3.0
 
 Milestone 4: auto-oriented rewriting.

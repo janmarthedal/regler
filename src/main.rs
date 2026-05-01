@@ -5,9 +5,10 @@ use regler::ast::{Command, Expr};
 use regler::kernel::eval::evaluate;
 use regler::kernel::lower::lower;
 use regler::kernel::print::to_surface;
-use regler::kernel::rewrite::{orient, simplify, Orient, Rule};
+use regler::kernel::rewrite::simplify;
 use regler::kernel::subst::subst;
 use regler::kernel::term::{sym, Symbol, Term};
+use regler::kernel::theory::{FactEffect, Theory};
 use regler::parser::parse_command;
 use regler::printer::{print_command, print_expr};
 
@@ -19,7 +20,7 @@ fn main() -> io::Result<()> {
     let mut bindings: HashMap<String, Expr> = HashMap::new();
     let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
     let mut facts: Vec<Expr> = Vec::new();
-    let mut rules: Vec<Rule> = Vec::new();
+    let mut theory = Theory::new();
 
     let mut line = String::new();
     loop {
@@ -48,7 +49,7 @@ fn main() -> io::Result<()> {
                 }
                 Command::Fact(e) => {
                     println!("{}", print_command(&Command::Fact(e.clone())));
-                    install_fact(&e, &mut rules);
+                    install_fact(&e, &mut theory);
                     facts.push(e);
                 }
                 Command::Print(e) => {
@@ -62,7 +63,7 @@ fn main() -> io::Result<()> {
                     Ok(out) => println!("{}", out),
                     Err(msg) => println!("error: {}", msg),
                 },
-                Command::Simplify(e) => match run_simplify(&e, &kernel_bindings, &rules) {
+                Command::Simplify(e) => match run_simplify(&e, &kernel_bindings, &theory) {
                     Ok(out) => println!("{}", out),
                     Err(msg) => println!("error: {}", msg),
                 },
@@ -90,40 +91,53 @@ fn run_evaluate(e: &Expr, bindings: &HashMap<Symbol, Term>) -> Result<String, St
 fn run_simplify(
     e: &Expr,
     bindings: &HashMap<Symbol, Term>,
-    rules: &[Rule],
+    theory: &Theory,
 ) -> Result<String, String> {
     let t = lower(e).map_err(|err| err.0)?;
     let t = subst(&t, bindings);
-    let t = simplify(&t, rules);
+    let t = simplify(&t, theory);
     let surface = to_surface(&t).map_err(|err| err.0)?;
     Ok(print_expr(&surface))
 }
 
-/// Try to install a fact as an auto-oriented rewrite rule. If the fact is an
-/// equality whose two sides are KBO-comparable, the larger side becomes the
-/// rule's lhs. Equalities whose sides are KBO-incomparable, or facts that are
-/// not equalities, are stored without producing a rule.
+/// Hand the fact to the theory: it tries commutativity / associativity /
+/// identity-shape recognition first, then falls back to KBO orientation.
 ///
 /// Note: `Var`s in a fact are treated as pattern variables, NOT resolved
 /// against `let` bindings — `fact x + 0 = x` orients with `x` as a pattern
 /// variable that matches anything.
-fn install_fact(e: &Expr, rules: &mut Vec<Rule>) {
+fn install_fact(e: &Expr, theory: &mut Theory) {
     let t = match lower(e) {
         Ok(t) => t,
         Err(err) => {
-            println!("note: fact not installed as rule: {}", err.0);
+            println!("note: fact not installed: {}", err.0);
             return;
         }
     };
-    let (l, r) = match &t {
-        Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => (&args[0], &args[1]),
-        _ => return,
-    };
-    match orient(l, r) {
-        Orient::Rule(rule) => rules.push(rule),
-        Orient::Trivial => println!("note: trivial equality, no rule installed"),
-        Orient::Incomparable => {
-            println!("note: equality is KBO-incomparable, no rule installed")
+    for effect in theory.install_fact(&t) {
+        match effect {
+            FactEffect::NotEquality => {}
+            FactEffect::RuleInstalled => {}
+            FactEffect::AlreadyKnown => {}
+            FactEffect::Trivial => println!("note: trivial equality, no rule installed"),
+            FactEffect::Incomparable => {
+                println!("note: equality is KBO-incomparable, no rule installed")
+            }
+            FactEffect::Commutativity(f) => {
+                println!("note: recognised commutativity for `{}`", f)
+            }
+            FactEffect::Associativity(f) => {
+                println!("note: recognised associativity for `{}`", f)
+            }
+            FactEffect::LeftIdentity(f, _) => {
+                println!("note: registered left identity for `{}`", f)
+            }
+            FactEffect::RightIdentity(f, _) => {
+                println!("note: registered right identity for `{}`", f)
+            }
+            FactEffect::AcPromoted(f) => {
+                println!("note: `{}` promoted to AC", f)
+            }
         }
     }
 }

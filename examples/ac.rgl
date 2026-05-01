@@ -1,0 +1,13 @@
+fact a + b = b + a
+fact (a + b) + c = a + (b + c)
+fact x + 0 = x
+fact a · b = b · a
+fact (a · b) · c = a · (b · c)
+fact x · 1 = x
+simplify (c + a) + b
+simplify (b + a) + c
+simplify a + 0 + b
+simplify 0 + a + 0
+simplify (2 + a) + 3
+simplify (3 · a) · 2
+simplify a · 1 · b

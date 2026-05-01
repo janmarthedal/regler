@@ -19,6 +19,14 @@ pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
                 Box::new(to_surface(l)?),
                 Box::new(to_surface(r)?),
             )),
+            (Some(op), rest) if rest.len() > 2 => {
+                let mut it = rest.iter();
+                let mut acc = to_surface(it.next().unwrap())?;
+                for a in it {
+                    acc = Expr::BinOp(op, Box::new(acc), Box::new(to_surface(a)?));
+                }
+                Ok(acc)
+            }
             _ => Err(UnprintableError(format!(
                 "no surface form for application: head={head:?}, arity={}",
                 args.len()
