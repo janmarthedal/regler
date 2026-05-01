@@ -11,7 +11,9 @@ pub enum Expr {
 pub enum Op {
     Eq,
     Add,
+    Sub,
     Mul,
+    Div,
     Pow,
 }
 
@@ -19,8 +21,8 @@ impl Op {
     pub fn prec(self) -> u8 {
         match self {
             Op::Eq => 1,
-            Op::Add => 2,
-            Op::Mul => 3,
+            Op::Add | Op::Sub => 2,
+            Op::Mul | Op::Div => 3,
             Op::Pow => 4,
         }
     }
@@ -33,7 +35,9 @@ impl Op {
         match self {
             Op::Eq => "=",
             Op::Add => "+",
+            Op::Sub => "-",
             Op::Mul => "·",
+            Op::Div => "/",
             Op::Pow => "^",
         }
     }

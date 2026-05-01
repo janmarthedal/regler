@@ -1,6 +1,7 @@
-use num_bigint::BigUint;
-use num_traits::{ToPrimitive, Zero};
+use num_rational::BigRational;
+use num_traits::{One, ToPrimitive, Zero};
 
+use crate::kernel::eval::{rat_to_term, term_to_rat};
 use crate::kernel::pmatch::pmatch;
 use crate::kernel::subst::subst;
 use crate::kernel::term::{Symbol, Term};
@@ -10,7 +11,7 @@ pub use crate::kernel::theory::{orient, Orient, Rule};
 
 /// Reduce `t` to a normal form against `theory`. The fixed-point loop combines
 /// three strictly-decreasing reductions:
-/// 1. closed literal arithmetic on ℕ for `+`, `·`, `^`,
+/// 1. closed literal arithmetic on ℕ/ℤ/ℚ for `+`, `-`, `·`, `/`, `^`,
 /// 2. AC normalization (flatten + sort + drop identity operands + fold literal
 ///    operands) for any operator the theory has promoted to AC,
 /// 3. binary identity-element absorption for non-AC operators that have an
@@ -20,7 +21,7 @@ pub use crate::kernel::theory::{orient, Orient, Rule};
 /// count, so the loop terminates.
 pub fn simplify(t: &Term, theory: &Theory) -> Term {
     let t1 = match t {
-        Term::Nat(_) | Term::Var(_) => t.clone(),
+        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => t.clone(),
         Term::App(head, args) => {
             let new_args: Vec<Term> = args.iter().map(|a| simplify(a, theory)).collect();
             let folded = arith_fold(head, new_args);
@@ -52,8 +53,9 @@ fn normalize_app(t: Term, theory: &Theory) -> Term {
 
 /// Flatten nested `f`-applications into one operand list, drop any operands
 /// equal to `f`'s identity element, fold contiguous literal operands of `+`/`·`
-/// into a single `Nat`, then sort by the canonical term order. Collapses to the
-/// identity (zero operands) or to a lone operand (one operand) when possible.
+/// into a single numeric term, then sort by the canonical term order. Collapses
+/// to the identity (zero operands) or to a lone operand (one operand) when
+/// possible.
 fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     let mut flat: Vec<Term> = Vec::with_capacity(args.len());
     for a in args {
@@ -79,33 +81,35 @@ fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     }
 }
 
-/// Combine all `Nat` operands of an AC `+` or `·` into a single `Nat` term.
+/// Combine all numeric operands of an AC `+` or `·` into a single term,
+/// promoting through ℕ → ℤ → ℚ as needed.
 fn fold_literals(head: &Symbol, flat: &mut Vec<Term>) {
-    let op = match head.as_ref() {
-        "+" => |a: &BigUint, b: &BigUint| a + b,
-        "·" => |a: &BigUint, b: &BigUint| a * b,
-        _ => return,
+    let is_add = head.as_ref() == "+";
+    let is_mul = head.as_ref() == "·";
+    if !is_add && !is_mul {
+        return;
+    }
+    let identity: BigRational = if is_add {
+        BigRational::zero()
+    } else {
+        BigRational::one()
     };
-    let mut acc: Option<BigUint> = None;
+
+    let mut acc: Option<BigRational> = None;
     flat.retain(|x| {
-        if let Term::Nat(n) = x {
+        if let Some(r) = term_to_rat(x) {
             acc = Some(match acc.take() {
-                Some(a) => op(&a, n),
-                None => n.clone(),
+                Some(a) => if is_add { a + r } else { a * r },
+                None => r,
             });
             false
         } else {
             true
         }
     });
-    if let Some(n) = acc {
-        let identity_value = match head.as_ref() {
-            "+" => BigUint::zero(),
-            "·" => BigUint::from(1u32),
-            _ => unreachable!(),
-        };
-        if n != identity_value || flat.is_empty() {
-            flat.push(Term::Nat(n));
+    if let Some(r) = acc {
+        if r != identity || flat.is_empty() {
+            flat.push(rat_to_term(r));
         }
     }
 }
@@ -130,17 +134,27 @@ fn identity_drop_binary(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term 
 
 fn arith_fold(head: &Symbol, args: Vec<Term>) -> Term {
     if args.len() == 2 {
-        if let (Term::Nat(a), Term::Nat(b)) = (&args[0], &args[1]) {
-            match head.as_ref() {
-                "+" => return Term::Nat(a + b),
-                "·" => return Term::Nat(a * b),
-                "^" => {
+        match head.as_ref() {
+            "+" | "-" | "·" | "/" => {
+                if let (Some(a), Some(b)) = (term_to_rat(&args[0]), term_to_rat(&args[1])) {
+                    let result = match head.as_ref() {
+                        "+" => a + b,
+                        "-" => a - b,
+                        "·" => a * b,
+                        "/" if !b.is_zero() => a / b,
+                        _ => return Term::App(head.clone(), args),
+                    };
+                    return rat_to_term(result);
+                }
+            }
+            "^" => {
+                if let (Term::Nat(a), Term::Nat(b)) = (&args[0], &args[1]) {
                     if let Some(e) = b.to_u32() {
                         return Term::Nat(a.pow(e));
                     }
                 }
-                _ => {}
             }
+            _ => {}
         }
     }
     Term::App(head.clone(), args)

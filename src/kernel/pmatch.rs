@@ -28,6 +28,14 @@ fn pmatch_into(
             Term::Nat(b) if a == b => Some(sigma),
             _ => None,
         },
+        Term::Int(a) => match t {
+            Term::Int(b) if a == b => Some(sigma),
+            _ => None,
+        },
+        Term::Rat(a) => match t {
+            Term::Rat(b) if a == b => Some(sigma),
+            _ => None,
+        },
         Term::App(f, args) => match t {
             Term::App(g, args2) if f == g && args.len() == args2.len() => {
                 let mut s = sigma;

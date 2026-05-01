@@ -2,6 +2,21 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.5.0
+
+Milestone 6: widen numeric tower to ℤ and ℚ.
+
+- `Term` gains two new variants: `Int(BigInt)` for negative integers and `Rat(BigRational)` for non-integer rationals. Variant order is `App < Var < Nat < Int < Rat`, preserving the "literals sort last" invariant used by AC normalization.
+- Arithmetic is now closed over ℕ ∪ ℤ ∪ ℚ with implicit promotion: any binary operation on numeric literals uses `BigRational` internally and converts the result back to the most specific type (`Nat` if non-negative integer, `Int` if negative integer, `Rat` otherwise). This applies both in `evaluate` and in `simplify`'s literal-folding path.
+- New operators `-` (subtraction) and `/` (division) at the surface level. `-` has the same precedence as `+` (level 2); `/` has the same precedence as `·` (level 3); both are left-associative. Division by zero is reported as an error in `evaluate`.
+- Unary minus on integer literals: `-3` in surface syntax folds into `Expr::Int(-3)` at parse time, so negative integer results round-trip correctly through print → parse.
+- Negative integer literals (`Expr::Int` with negative value) lower to `Term::Int`; non-negative integers continue to lower to `Term::Nat`.
+- KBO extended: `Int` and `Rat` have weight 1 (like `Nat`); numeric literals of any mix of types are compared by their rational value; the builtin-precedence table adds `-` at level 1 (with `+`) and `/` at level 2 (with `·`).
+- `pmatch`, `subst`, `theory::is_closed`, `simplify`, `fold_literals`, and kernel-to-surface printing all extended for `Int` and `Rat`.
+- `fold_literals` in AC normalization now accumulates via `BigRational`, so AC `+`/`·` operators fold mixed-type literal operands correctly.
+- Added `num-rational` dependency.
+- Integration tests in `tests/numeric_tower.rs` covering: subtraction with Nat/zero/negative results, negative literal parsing, Int-to-Nat promotion on addition, exact and fractional division, negative rationals, mixed rational arithmetic, and unchanged ℕ behaviour.
+
 ## 0.4.0
 
 Milestone 5: AC recognition and identity-element marking.

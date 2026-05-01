@@ -12,6 +12,12 @@ pub struct UnprintableError(pub String);
 pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
     match t {
         Term::Nat(n) => Ok(Expr::Int(BigInt::from(n.clone()))),
+        Term::Int(n) => Ok(Expr::Int(n.clone())),
+        Term::Rat(r) => Ok(Expr::BinOp(
+            Op::Div,
+            Box::new(Expr::Int(r.numer().clone())),
+            Box::new(Expr::Int(r.denom().clone())),
+        )),
         Term::Var(s) => Ok(Expr::Ident(s.to_string())),
         Term::App(head, args) => match (op_for(head), args.as_slice()) {
             (Some(op), [l, r]) => Ok(Expr::BinOp(
@@ -38,7 +44,9 @@ pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
 fn op_for(head: &str) -> Option<Op> {
     match head {
         "+" => Some(Op::Add),
+        "-" => Some(Op::Sub),
         "·" => Some(Op::Mul),
+        "/" => Some(Op::Div),
         "^" => Some(Op::Pow),
         "=" => Some(Op::Eq),
         _ => None,

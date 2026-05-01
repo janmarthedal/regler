@@ -110,7 +110,9 @@ impl Parser {
     fn peek_binop(&self) -> Option<Op> {
         match self.peek()? {
             Token::Plus => Some(Op::Add),
+            Token::Minus => Some(Op::Sub),
             Token::Dot => Some(Op::Mul),
+            Token::Slash => Some(Op::Div),
             Token::Caret => Some(Op::Pow),
             Token::Equals => Some(Op::Eq),
             _ => None,
@@ -142,6 +144,16 @@ impl Parser {
     /// Parse a primary expression: identifier, integer literal, or
     /// parenthesized subexpression.
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
+        // Unary minus on integer literals only: `-3` folds into a negative literal.
+        if matches!(self.peek(), Some(Token::Minus)) {
+            self.advance();
+            return match self.advance() {
+                Some(Token::Int(n)) => Ok(Expr::Int(-n)),
+                other => Err(ParseError(format!(
+                    "expected integer after unary `-`, got {other:?}"
+                ))),
+            };
+        }
         match self.advance() {
             Some(Token::Ident(s)) => Ok(Expr::Ident(s)),
             Some(Token::Int(n)) => Ok(Expr::Int(n)),

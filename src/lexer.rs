@@ -5,7 +5,9 @@ pub enum Token {
     Ident(String),
     Int(BigInt),
     Plus,
+    Minus,  // -
     Dot,    // ·
+    Slash,  // /
     Caret,  // ^
     Equals, // =
     LParen,
@@ -34,9 +36,15 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
         } else if c == '+' {
             chars.next();
             tokens.push(Token::Plus);
+        } else if c == '-' {
+            chars.next();
+            tokens.push(Token::Minus);
         } else if c == '·' {
             chars.next();
             tokens.push(Token::Dot);
+        } else if c == '/' {
+            chars.next();
+            tokens.push(Token::Slash);
         } else if c == '^' {
             chars.next();
             tokens.push(Token::Caret);

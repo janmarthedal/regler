@@ -283,7 +283,7 @@ fn as_var(t: &Term) -> Option<&Symbol> {
 
 fn is_closed(t: &Term) -> bool {
     match t {
-        Term::Nat(_) => true,
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => true,
         Term::Var(_) => false,
         Term::App(_, args) => args.iter().all(is_closed),
     }

@@ -24,11 +24,14 @@
 //!   Together, the fixed-point loop in `simplify` is guaranteed to halt.
 //!
 //! Parameters chosen here: every symbol — variables, numeric literals, and
-//! application heads — has weight 1. Precedence on App heads ranks the four
-//! built-ins as `= < + < · < ^` (mirroring surface precedence); other heads
-//! fall back to byte-wise string order and rank above the built-ins.
+//! application heads — has weight 1. Precedence on App heads ranks the six
+//! built-ins as `= < + = - < · = / < ^` (mirroring surface precedence);
+//! other heads fall back to byte-wise string order and rank above the built-ins.
 
 use std::collections::HashSet;
+
+use num_bigint::BigInt;
+use num_rational::BigRational;
 
 use crate::kernel::term::{Symbol, Term};
 
@@ -75,7 +78,6 @@ fn kbo_gt(s: &Term, t: &Term) -> bool {
     }
     match (s, t) {
         (Term::Var(_), _) | (_, Term::Var(_)) => false,
-        (Term::Nat(a), Term::Nat(b)) => a > b,
         (Term::App(f, sa), Term::App(g, ta)) if f == g && sa.len() == ta.len() => {
             for (si, ti) in sa.iter().zip(ta.iter()) {
                 if si == ti {
@@ -86,21 +88,33 @@ fn kbo_gt(s: &Term, t: &Term) -> bool {
             false
         }
         (Term::App(f, _), Term::App(g, _)) => prec_gt(f, g),
-        (Term::App(_, _), Term::Nat(_)) => true,
-        (Term::Nat(_), Term::App(_, _)) => false,
+        // App > all numeric literals
+        (Term::App(_, _), _) => true,
+        (_, Term::App(_, _)) => false,
+        // All remaining cases: both terms are numeric — compare by value
+        _ => num_to_rat(s) > num_to_rat(t),
+    }
+}
+
+fn num_to_rat(t: &Term) -> BigRational {
+    match t {
+        Term::Nat(n) => BigRational::from(BigInt::from(n.clone())),
+        Term::Int(n) => BigRational::from(n.clone()),
+        Term::Rat(r) => r.clone(),
+        _ => unreachable!(),
     }
 }
 
 fn weight(t: &Term) -> u64 {
     match t {
-        Term::Nat(_) | Term::Var(_) => 1,
+        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => 1,
         Term::App(_, args) => 1 + args.iter().map(weight).sum::<u64>(),
     }
 }
 
 fn var_count(t: &Term, x: &Symbol) -> u64 {
     match t {
-        Term::Nat(_) => 0,
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => 0,
         Term::Var(s) => {
             if s == x {
                 1
@@ -114,7 +128,7 @@ fn var_count(t: &Term, x: &Symbol) -> u64 {
 
 fn collect_vars(t: &Term, out: &mut HashSet<Symbol>) {
     match t {
-        Term::Nat(_) => {}
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => {}
         Term::Var(s) => {
             out.insert(s.clone());
         }
@@ -126,10 +140,10 @@ fn collect_vars(t: &Term, out: &mut HashSet<Symbol>) {
     }
 }
 
-/// Strict precedence on App heads. The four built-in arithmetic/equality
-/// operators are ordered `= < + < · < ^`, mirroring surface precedence.
-/// Unknown heads fall back to byte-wise string comparison and are placed
-/// above the built-ins so that user-introduced operators do not perturb
+/// Strict precedence on App heads. The six built-in arithmetic/equality
+/// operators are ordered `= < + = - < · = / < ^`, mirroring surface
+/// precedence. Unknown heads fall back to byte-wise string comparison and are
+/// placed above the built-ins so that user-introduced operators do not perturb
 /// the orientation of arithmetic facts.
 fn prec_gt(f: &Symbol, g: &Symbol) -> bool {
     let pf = builtin_prec(f);
@@ -145,8 +159,8 @@ fn prec_gt(f: &Symbol, g: &Symbol) -> bool {
 fn builtin_prec(s: &Symbol) -> Option<u8> {
     match s.as_ref() {
         "=" => Some(0),
-        "+" => Some(1),
-        "·" => Some(2),
+        "+" | "-" => Some(1),
+        "·" | "/" => Some(2),
         "^" => Some(3),
         _ => None,
     }
