@@ -42,10 +42,9 @@ The strategy is to get a working end-to-end spine early, then deepen iteratively
 6. **Widen numeric tower.** ℤ, ℚ, the subset chain, implicit promotion.
 7. **Side conditions on facts** (`if` clauses), then `apply` and `apply ←`.
 8. **Sets as first-class.** Membership, subset, set-builder — introduced when the first example genuinely needs them (likely with `sin`, `Pos`, etc.).
+9. **Partial AC normalization.** Assoc-only flattens nested applications to n-ary form (order preserved); comm-only sorts the two arguments of a binary application by the kernel's term order. Both compose correctly with identity-element dropping. No new surface syntax.
 
 ### Upcoming
-
-9. **Partial AC normalization.** The `saw_comm` and `saw_assoc` flags are already tracked independently, but only the fully-promoted AC case drives normalization. This milestone wires up the partial behaviors: associativity-only flattens nested applications to n-ary form (order preserved); commutativity-only sorts the two arguments of a binary application by the kernel's term order. Both compose correctly with identity-element dropping. No new surface syntax. Adds tests for assoc-only (e.g. `∘`), comm-only, and identity interactions in both partial cases.
 
 10. **Complex numbers.** No new language features — uses only the existing set and rewriting machinery. Adds `ℂ : Set`, `fact ℝ ⊆ ℂ`, `let i : ℂ`, `fact i·i = -1`, and commutativity/associativity for `+` and `·` on ℂ. New runnable example `examples/complex.rgl` demonstrating: `simplify (1 + i)·(1 - i)` → `2`, `simplify i^4` → `1`.
 

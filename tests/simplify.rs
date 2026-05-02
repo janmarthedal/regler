@@ -152,8 +152,13 @@ fn simplify_pattern_var_matches_compound_subterm() {
 #[test]
 fn commutativity_alone_does_not_promote_to_ac() {
     let theory = theory_from_facts(&["a + b = b + a"]);
-    // No AC yet — `b + a` stays in its written order.
-    assert_eq!(simp_str("b + a", &theory), "b + a");
+    // Comm-only sorts the two arguments by term order.
+    assert_eq!(simp_str("b + a", &theory), "a + b");
+    // No flattening without associativity: `(c + b) + a` stays nested.
+    // Inner `c + b` is sorted to `b + c`; outer `(b + c) + a` is already
+    // sorted (App < Var in term order). The printer elides parens for
+    // left-nested `+`, so it prints as `b + c + a` (still 2-deep, not flat).
+    assert_eq!(simp_str("(c + b) + a", &theory), "b + c + a");
 }
 
 #[test]
@@ -255,4 +260,110 @@ fn ac_unifies_left_and_right_identity() {
     ]);
     // Even though we only stated x + 0 = x (right id), 0 + a should drop too.
     assert_eq!(simp_str("0 + a", &theory), "a");
+}
+
+// --- Milestone 9: Partial AC normalization ---
+// Tests use function-application syntax (e.g., `comp(a, b)`) for operators
+// not in the lexer, and numeric literals for identity elements.
+
+#[test]
+fn assoc_only_flattens_and_preserves_order() {
+    // `comp` gets associativity but not commutativity.
+    let theory = theory_from_facts(&["comp(comp(a, b), c) = comp(a, comp(b, c))"]);
+    // Nested apps collapse to n-ary form.
+    assert_eq!(simp_str("comp(comp(f, g), h)", &theory), "comp(f, g, h)");
+    assert_eq!(simp_str("comp(f, comp(g, h))", &theory), "comp(f, g, h)");
+    // Order is preserved — no sorting.
+    assert_eq!(simp_str("comp(comp(h, g), f)", &theory), "comp(h, g, f)");
+    assert_eq!(simp_str("comp(h, comp(g, f))", &theory), "comp(h, g, f)");
+}
+
+#[test]
+fn assoc_only_does_not_sort() {
+    // Associativity alone must not sort operands.
+    let theory = theory_from_facts(&["comp(comp(a, b), c) = comp(a, comp(b, c))"]);
+    // `c, a, b` order must be preserved after flattening.
+    assert_eq!(simp_str("comp(comp(c, a), b)", &theory), "comp(c, a, b)");
+}
+
+#[test]
+fn assoc_only_right_identity_drops_except_position_zero() {
+    // Right-identity `0`: `comp(x, 0) = x`. With assoc-only, 0 is droppable
+    // from any position except position 0.
+    let theory = theory_from_facts(&[
+        "comp(comp(a, b), c) = comp(a, comp(b, c))",
+        "comp(x, 0) = x",
+    ]);
+    // Binary case: drops from tail.
+    assert_eq!(simp_str("comp(f, 0)", &theory), "f");
+    // After flattening, drops from middle and tail.
+    assert_eq!(simp_str("comp(comp(f, 0), g)", &theory), "comp(f, g)");
+    assert_eq!(simp_str("comp(comp(f, g), 0)", &theory), "comp(f, g)");
+    // 0 at position 0 is NOT dropped without left-identity.
+    assert_eq!(simp_str("comp(0, f)", &theory), "comp(0, f)");
+}
+
+#[test]
+fn assoc_only_left_identity_drops_except_last_position() {
+    // Left-identity `0`: `comp(0, x) = x`. With assoc-only, 0 is droppable
+    // from any position except the last.
+    let theory = theory_from_facts(&[
+        "comp(comp(a, b), c) = comp(a, comp(b, c))",
+        "comp(0, x) = x",
+    ]);
+    // Binary case: drops from head.
+    assert_eq!(simp_str("comp(0, f)", &theory), "f");
+    // After flattening, drops from head and middle.
+    assert_eq!(simp_str("comp(0, comp(f, g))", &theory), "comp(f, g)");
+    assert_eq!(simp_str("comp(comp(0, f), g)", &theory), "comp(f, g)");
+    // 0 at the last position is NOT dropped without right-identity.
+    assert_eq!(simp_str("comp(f, 0)", &theory), "comp(f, 0)");
+}
+
+#[test]
+fn assoc_only_both_identities_drop_everywhere() {
+    // If the same element is both left and right identity, drop at all positions.
+    let theory = theory_from_facts(&[
+        "comp(comp(a, b), c) = comp(a, comp(b, c))",
+        "comp(0, x) = x",
+        "comp(x, 0) = x",
+    ]);
+    assert_eq!(simp_str("comp(0, f)", &theory), "f");
+    assert_eq!(simp_str("comp(f, 0)", &theory), "f");
+    assert_eq!(simp_str("comp(0, comp(f, 0))", &theory), "f");
+}
+
+#[test]
+fn comm_only_sorts_two_args() {
+    // `xor` gets commutativity but not associativity.
+    let theory = theory_from_facts(&["xor(a, b) = xor(b, a)"]);
+    // Both orderings canonicalise to the same sorted form.
+    assert_eq!(simp_str("xor(b, a)", &theory), "xor(a, b)");
+    assert_eq!(simp_str("xor(a, b)", &theory), "xor(a, b)");
+    // Inner app sorts, outer app also sorts (canonically).
+    let s1 = simp_str("xor(xor(z, a), b)", &theory);
+    let s2 = simp_str("xor(xor(a, z), b)", &theory);
+    assert_eq!(s1, s2);
+}
+
+#[test]
+fn comm_only_with_identity_drops() {
+    // Right-identity with comm-only: after sorting, 0 ends up on the right
+    // side and is dropped by identity_drop_binary.
+    let theory = theory_from_facts(&[
+        "xor(a, b) = xor(b, a)",
+        "xor(x, 0) = x",
+    ]);
+    assert_eq!(simp_str("xor(a, 0)", &theory), "a");
+    // `xor(0, a)`: sorted to `xor(a, 0)` (Nat < Var), then 0 drops.
+    assert_eq!(simp_str("xor(0, a)", &theory), "a");
+}
+
+#[test]
+fn comm_only_does_not_promote_to_ac() {
+    // Commutativity alone must not trigger AC flattening.
+    let theory = theory_from_facts(&["xor(a, b) = xor(b, a)"]);
+    // Nested binary app stays nested — no flattening without associativity.
+    let result = simp_str("xor(xor(a, b), c)", &theory);
+    assert_ne!(result, "xor(a, b, c)");
 }

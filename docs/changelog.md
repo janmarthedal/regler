@@ -2,6 +2,17 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.8.0
+
+Milestone 9: partial AC normalization — assoc-only flattens, comm-only sorts.
+
+- **Assoc-only flattening.** When a function `f` has an associativity fact but not commutativity, nested binary applications are flattened to n-ary form preserving order. `comp(comp(a, b), c)` and `comp(a, comp(b, c))` both normalize to `comp(a, b, c)`.
+- **Comm-only sorting.** When a function `f` has a commutativity fact but not associativity, the two arguments of a binary application are sorted by the kernel's term order. `xor(b, a)` normalizes to `xor(a, b)`.
+- **Positional identity-element dropping for assoc-only.** With associativity alone, a right-identity element is droppable at any position except position 0 (which would require left-identity), and a left-identity element is droppable at any position except the last (which would require right-identity). If the same element is registered as both, it is dropped at all positions.
+- **Identity dropping composes with comm-only sorting.** After sorting, the identity element may end up on either side; `identity_drop_binary` checks both sides, so comm-only + identity works automatically.
+- New `Theory::is_assoc_only` and `Theory::is_comm_only` accessors for dispatch in `normalize_app`.
+- New runnable example `examples/partial_ac.rgl` demonstrating assoc-only (`comp`) and comm-only (`xor`) behavior with identity elements.
+
 ## 0.7.0
 
 Milestone 8: sets as first-class objects, set-builder definitions, and membership discharge.

@@ -1,0 +1,21 @@
+# Milestone 9: Partial AC normalization
+# assoc-only flattens, comm-only sorts.
+
+# comp: associativity only (no commutativity)
+fact comp(comp(a, b), c) = comp(a, comp(b, c))
+fact comp(x, 0) = x
+
+simplify comp(comp(f, g), h)
+simplify comp(f, comp(g, h))
+simplify comp(comp(h, g), f)
+simplify comp(comp(f, 0), g)
+simplify comp(comp(f, g), 0)
+simplify comp(0, f)
+
+# xor: commutativity only (no associativity)
+fact xor(a, b) = xor(b, a)
+fact xor(x, 0) = x
+
+simplify xor(b, a)
+simplify xor(0, a)
+simplify xor(a, 0)

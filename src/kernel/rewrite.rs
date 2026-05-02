@@ -171,6 +171,10 @@ fn normalize_app(t: Term, theory: &Theory) -> Term {
     };
     if theory.is_ac(&head) {
         ac_normalize(&head, args, theory)
+    } else if theory.is_assoc_only(&head) {
+        assoc_only_normalize(head, args, theory)
+    } else if theory.is_comm_only(&head) {
+        comm_only_normalize(head, args, theory)
     } else {
         identity_drop_binary(head, args, theory)
     }
@@ -198,6 +202,76 @@ fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
         0 => identity.unwrap_or(Term::App(head.clone(), Vec::new())),
         1 => flat.into_iter().next().unwrap(),
         _ => Term::App(head.clone(), flat),
+    }
+}
+
+/// Flatten nested `f(f(a,b),c)` → `f(a,b,c)` preserving order (assoc-only).
+/// Identity elements are dropped positionally:
+/// - right identity is valid at any position except index 0
+/// - left identity is valid at any position except the last
+/// If an element is registered as both, it is dropped at all positions.
+fn assoc_only_normalize(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term {
+    let mut flat: Vec<Term> = Vec::with_capacity(args.len());
+    for a in args {
+        match a {
+            Term::App(h, sub) if h == head => flat.extend(sub),
+            other => flat.push(other),
+        }
+    }
+
+    let left_id = theory.left_identity(&head).cloned();
+    let right_id = theory.right_identity(&head).cloned();
+
+    // Determine which identity value can be dropped unconditionally (both sides).
+    let both_id: Option<&Term> = match (&left_id, &right_id) {
+        (Some(l), Some(r)) if l == r => Some(l),
+        _ => None,
+    };
+
+    if let Some(id) = both_id {
+        flat.retain(|x| x != id);
+    } else {
+        // Drop right-identity from indices 1.. (not position 0)
+        if let Some(id) = &right_id {
+            let mut skip_first = true;
+            flat.retain(|x| {
+                if skip_first {
+                    skip_first = false;
+                    return true;
+                }
+                x != id
+            });
+        }
+        // Drop left-identity from indices ..n-1 (not last position)
+        if let Some(id) = &left_id {
+            let last = flat.len().saturating_sub(1);
+            let mut i = 0usize;
+            flat.retain(|x| {
+                let keep = i == last || x != id;
+                i += 1;
+                keep
+            });
+        }
+    }
+
+    match flat.len() {
+        0 => {
+            let id = right_id.or(left_id).unwrap_or(Term::App(head.clone(), Vec::new()));
+            id
+        }
+        1 => flat.into_iter().next().unwrap(),
+        _ => Term::App(head, flat),
+    }
+}
+
+/// Sort two arguments by term order (comm-only), then drop identities.
+fn comm_only_normalize(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term {
+    if args.len() == 2 {
+        let mut sorted = args;
+        sorted.sort();
+        identity_drop_binary(head, sorted, theory)
+    } else {
+        identity_drop_binary(head, args, theory)
     }
 }
 

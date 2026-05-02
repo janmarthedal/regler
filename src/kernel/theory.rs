@@ -111,6 +111,16 @@ impl Theory {
         self.ac.contains(f)
     }
 
+    /// True when `f` has associativity but not commutativity (not yet AC).
+    pub fn is_assoc_only(&self, f: &Symbol) -> bool {
+        self.saw_assoc.contains(f) && !self.ac.contains(f)
+    }
+
+    /// True when `f` has commutativity but not associativity (not yet AC).
+    pub fn is_comm_only(&self, f: &Symbol) -> bool {
+        self.saw_comm.contains(f) && !self.ac.contains(f)
+    }
+
     pub fn left_identity(&self, f: &Symbol) -> Option<&Term> {
         self.left_id.get(f)
     }
