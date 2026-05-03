@@ -165,8 +165,17 @@ impl Parser {
                     Ok(Command::Apply(name, e))
                 }
             }
+            Some(Token::Import) => {
+                self.advance();
+                match self.advance() {
+                    Some(Token::StringLit(path)) => Ok(Command::Import(path)),
+                    other => Err(ParseError(format!(
+                        "expected string path after `import`, got {other:?}"
+                    ))),
+                }
+            }
             other => Err(ParseError(format!(
-                "expected command (let/fact/print/evaluate/simplify/apply), got {other:?}"
+                "expected command (let/fact/print/evaluate/simplify/apply/import), got {other:?}"
             ))),
         }
     }

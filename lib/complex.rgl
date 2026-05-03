@@ -1,0 +1,17 @@
+# Standard library: complex numbers
+# Structural axioms for ℝ, ℂ, and the imaginary unit i.
+
+let ℝ : Set
+let ℂ : Set
+fact ℝ ⊆ ℂ
+let i : ℂ
+
+fact i · i = -1
+fact i^2 = -1
+
+fact ∀ a, b ∈ ℂ. a + b = b + a
+fact ∀ a, b, c ∈ ℂ. (a + b) + c = a + (b + c)
+fact ∀ x ∈ ℂ. x + 0 = x
+fact ∀ a, b ∈ ℂ. a · b = b · a
+fact ∀ a, b, c ∈ ℂ. (a · b) · c = a · (b · c)
+fact ∀ x ∈ ℂ. x · 1 = x

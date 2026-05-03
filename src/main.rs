@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, Write};
+use std::path::{Path, PathBuf};
 
 use regler::ast::{Command, Expr, Op};
 use regler::kernel::eval::evaluate;
@@ -13,30 +14,55 @@ use regler::kernel::term::{sym, Symbol, Term};
 use regler::kernel::theory::{FactEffect, Theory};
 use regler::parser::parse_command;
 use regler::printer::{print_command, print_expr};
+use regler::runner::collect_statements;
+
+struct Session {
+    bindings: HashMap<String, Expr>,
+    kernel_bindings: HashMap<Symbol, Term>,
+    theory: Theory,
+    let_declared: HashSet<String>,
+}
+
+impl Session {
+    fn new() -> Self {
+        Session {
+            bindings: HashMap::new(),
+            kernel_bindings: HashMap::new(),
+            theory: Theory::new(),
+            let_declared: HashSet::new(),
+        }
+    }
+}
+
+struct ImportCtx {
+    /// Files currently being processed — used for cycle detection.
+    in_progress: HashSet<PathBuf>,
+    /// Files already fully imported — used for idempotency.
+    imported: HashSet<PathBuf>,
+}
+
+impl ImportCtx {
+    fn new() -> Self {
+        ImportCtx {
+            in_progress: HashSet::new(),
+            imported: HashSet::new(),
+        }
+    }
+}
 
 fn main() -> io::Result<()> {
     let mut stdout = io::stdout();
-    let mut bindings: HashMap<String, Expr> = HashMap::new();
-    let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
-    let mut theory = Theory::new();
-    let mut let_declared: HashSet<String> = HashSet::new();
+    let mut session = Session::new();
+    let mut import_ctx = ImportCtx::new();
 
     if let Some(path) = env::args().nth(1) {
-        let file = File::open(&path).map_err(|e| io::Error::new(e.kind(), format!("{path}: {e}")))?;
-        for line in io::BufReader::new(file).lines() {
-            let line = line?;
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            match parse_command(trimmed) {
-                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory, &mut let_declared),
-                Ok(None) => {}
-                Err(err) => println!("parse error: {}", err.0),
-            }
+        let path = PathBuf::from(&path);
+        if let Err(e) = run_file(&path, &mut session, &mut import_ctx) {
+            println!("error: {e}");
         }
     }
 
+    let repl_dir = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let stdin = io::stdin();
     let mut line = String::new();
     loop {
@@ -52,7 +78,7 @@ fn main() -> io::Result<()> {
             continue;
         }
         match parse_command(trimmed) {
-            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory, &mut let_declared),
+            Ok(Some(cmd)) => dispatch(cmd, &mut session, &mut import_ctx, &repl_dir),
             Ok(None) => {}
             Err(err) => println!("parse error: {}", err.0),
         }
@@ -60,70 +86,103 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn dispatch(
-    cmd: Command,
-    bindings: &mut HashMap<String, Expr>,
-    kernel_bindings: &mut HashMap<Symbol, Term>,
-    theory: &mut Theory,
-    let_declared: &mut HashSet<String>,
-) {
+fn run_file(path: &Path, session: &mut Session, ctx: &mut ImportCtx) -> io::Result<()> {
+    let canonical = path.canonicalize().map_err(|e| {
+        io::Error::new(e.kind(), format!("{}: {e}", path.display()))
+    })?;
+
+    if ctx.imported.contains(&canonical) {
+        return Ok(());
+    }
+    if ctx.in_progress.contains(&canonical) {
+        println!("error: import cycle detected: {}", path.display());
+        return Ok(());
+    }
+
+    ctx.in_progress.insert(canonical.clone());
+
+    let file = File::open(path).map_err(|e| {
+        io::Error::new(e.kind(), format!("{}: {e}", path.display()))
+    })?;
+    let raw: Result<Vec<_>, _> = io::BufReader::new(file).lines().collect();
+    let stmts = collect_statements(raw?);
+
+    let current_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
+
+    for stmt in stmts {
+        match parse_command(&stmt) {
+            Ok(Some(cmd)) => dispatch(cmd, session, ctx, &current_dir),
+            Ok(None) => {}
+            Err(err) => println!("parse error: {}", err.0),
+        }
+    }
+
+    ctx.in_progress.remove(&canonical);
+    ctx.imported.insert(canonical);
+    Ok(())
+}
+
+fn dispatch(cmd: Command, session: &mut Session, ctx: &mut ImportCtx, current_dir: &Path) {
     match cmd {
         Command::Let(name, ty, rhs) => {
             println!("{}", print_command(&Command::Let(name.clone(), ty.clone(), rhs.clone())));
-            handle_let(name, ty, rhs, bindings, kernel_bindings, theory, let_declared);
+            handle_let(name, ty, rhs, session);
         }
         Command::Fact(name, e, cond) => {
             println!("{}", print_command(&Command::Fact(name.clone(), e.clone(), cond.clone())));
-            install_fact(name, &e, cond.as_ref(), theory, let_declared);
+            install_fact(name, &e, cond.as_ref(), &mut session.theory, &session.let_declared);
         }
         Command::Print(e) => {
             let resolved = match &e {
-                Expr::Ident(name) => bindings.get(name).cloned().unwrap_or(e.clone()),
+                Expr::Ident(name) => session.bindings.get(name).cloned().unwrap_or(e.clone()),
                 _ => e.clone(),
             };
             println!("{}", print_expr(&resolved));
         }
-        Command::Evaluate(e) => match run_evaluate(&e, kernel_bindings) {
+        Command::Evaluate(e) => match run_evaluate(&e, &session.kernel_bindings) {
             Ok(out) => println!("{}", out),
             Err(msg) => println!("error: {}", msg),
         },
-        Command::Simplify(e) => match run_simplify(&e, kernel_bindings, theory) {
+        Command::Simplify(e) => match run_simplify(&e, &session.kernel_bindings, &session.theory) {
             Ok(out) => println!("{}", out),
             Err(msg) => println!("error: {}", msg),
         },
-        Command::Apply(name, e) => match run_apply(&name, &e, false, kernel_bindings, theory) {
-            Ok(out) => println!("{}", out),
-            Err(msg) => println!("error: {}", msg),
-        },
-        Command::ApplyRev(name, e) => match run_apply(&name, &e, true, kernel_bindings, theory) {
-            Ok(out) => println!("{}", out),
-            Err(msg) => println!("error: {}", msg),
-        },
+        Command::Apply(name, e) => {
+            match run_apply(&name, &e, false, &session.kernel_bindings, &session.theory) {
+                Ok(out) => println!("{}", out),
+                Err(msg) => println!("error: {}", msg),
+            }
+        }
+        Command::ApplyRev(name, e) => {
+            match run_apply(&name, &e, true, &session.kernel_bindings, &session.theory) {
+                Ok(out) => println!("{}", out),
+                Err(msg) => println!("error: {}", msg),
+            }
+        }
+        Command::Import(path_str) => {
+            println!("import \"{path_str}\"");
+            let path = current_dir.join(&path_str);
+            if let Err(e) = run_file(&path, session, ctx) {
+                println!("error: {e}");
+            }
+        }
     }
 }
 
-fn handle_let(
-    name: String,
-    ty: Option<Expr>,
-    rhs: Option<Expr>,
-    bindings: &mut HashMap<String, Expr>,
-    kernel_bindings: &mut HashMap<Symbol, Term>,
-    theory: &mut Theory,
-    let_declared: &mut HashSet<String>,
-) {
-    let_declared.insert(name.clone());
+fn handle_let(name: String, ty: Option<Expr>, rhs: Option<Expr>, session: &mut Session) {
+    session.let_declared.insert(name.clone());
     match (ty.as_ref(), rhs.as_ref()) {
         // `let Name : Set` — opaque set declaration
         (Some(Expr::Ident(t)), None) if t == "Set" => {
-            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
         }
 
         // `let Name : Set = {x ∈ S | P}` — predicate set definition
         (Some(Expr::Ident(t)), Some(Expr::SetBuilder(var, domain, pred))) if t == "Set" => {
-            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
             match (lower(domain), lower(pred)) {
                 (Ok(dom_term), Ok(pred_term)) => {
-                    theory.add_predicate_set(sym(&name), sym(var), dom_term, pred_term);
+                    session.theory.add_predicate_set(sym(&name), sym(var), dom_term, pred_term);
                 }
                 _ => println!("error: cannot lower set-builder definition for `{name}`"),
             }
@@ -131,22 +190,22 @@ fn handle_let(
 
         // `let name : ty` — opaque declaration with type annotation (e.g. `let i : ℂ`)
         (Some(_ty), None) => {
-            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
         }
 
         // `let name [: ty] = rhs` — value definition
         (_, Some(rhs_expr)) => {
             match lower(rhs_expr) {
                 Ok(t) => {
-                    kernel_bindings.insert(sym(&name), t);
-                    bindings.insert(name, rhs_expr.clone());
+                    session.kernel_bindings.insert(sym(&name), t);
+                    session.bindings.insert(name, rhs_expr.clone());
                 }
                 Err(err) => println!("error: {}", err.0),
             }
         }
 
         (None, None) => {
-            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
         }
     }
 }

@@ -102,4 +102,6 @@ pub enum Command {
     Apply(String, Expr),
     /// `apply ← name to expr`
     ApplyRev(String, Expr),
+    /// `import "path.rgl"`
+    Import(String),
 }

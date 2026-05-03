@@ -46,6 +46,7 @@ pub fn print_command(c: &Command) -> String {
         Command::Simplify(e) => format!("simplify {}", print_expr(e)),
         Command::Apply(name, e) => format!("apply {} to {}", name, print_expr(e)),
         Command::ApplyRev(name, e) => format!("apply ← {} to {}", name, print_expr(e)),
+        Command::Import(path) => format!("import \"{path}\""),
     }
 }
 

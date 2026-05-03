@@ -2,6 +2,19 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.10.0
+
+Milestone 11: multi-line input and imports.
+
+- **Indentation-based continuation for files.** Files are now parsed statement-by-statement. A non-empty line whose leading-whitespace count strictly exceeds the first line of the current statement is a continuation; it is joined to the accumulating statement with a space. Blank lines and comment-only lines are inert — they never end or start a statement. The REPL retains its line-at-a-time behaviour.
+- **`import "path.rgl"` statement.** Loads a file relative to the importing file (or the current working directory in the REPL). Imports are idempotent: if the same canonical path is imported more than once (transitively), subsequent imports are silently skipped. Import cycles are detected and reported as errors rather than looping forever.
+- **`Token::StringLit(String)` in the lexer.** Double-quoted string literals (`"..."`) are tokenized as `StringLit`. No escape sequences; contents are any characters except `"`. Used exclusively for import paths.
+- **`Command::Import(String)` in the AST and printer.** `import "path"` parses to `Command::Import(path)` and prints back as `import "path"` (round-trips correctly).
+- **`Session` and `ImportCtx` structs in the runner.** State previously threaded as individual parameters is now grouped into `Session` (bindings, kernel bindings, theory, declared names) and `ImportCtx` (in-progress and imported path sets). `run_file` handles indentation grouping, per-statement dispatch, and recursive imports.
+- **`src/runner.rs` module (library).** `strip_comment` and `collect_statements` are exposed as public library functions so they can be unit-tested independently of the binary.
+- **Standard library `lib/complex.rgl`.** Contains the structural axioms for ℝ, ℂ, and `i` (set declarations, subset fact, commutativity/associativity/identity for `+` and `·`, `i·i = -1`, `i^2 = -1`).
+- **Updated `examples/complex.rgl`.** Now imports `../lib/complex.rgl` and adds only the demo-specific ground facts (`i^4 = 1`, `(1+i)·(1-i) = 2`) plus the four `simplify` commands. Output is unchanged.
+
 ## 0.9.0
 
 Milestone 10: complex numbers — no new language features, uses existing set and rewriting machinery.

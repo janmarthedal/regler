@@ -4,6 +4,7 @@ use num_bigint::BigInt;
 pub enum Token {
     Ident(String),
     Int(BigInt),
+    StringLit(String), // "..."
     Plus,
     Minus,      // -
     Dot,        // ·
@@ -39,6 +40,7 @@ pub enum Token {
     Apply,
     To,
     If,
+    Import,
 }
 
 #[derive(Debug)]
@@ -166,8 +168,20 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
                 "apply" => Token::Apply,
                 "to" => Token::To,
                 "if" => Token::If,
+                "import" => Token::Import,
                 _ => Token::Ident(s),
             });
+        } else if c == '"' {
+            chars.next();
+            let mut s = String::new();
+            loop {
+                match chars.next() {
+                    Some('"') => break,
+                    Some(ch) => s.push(ch),
+                    None => return Err(LexError("unterminated string literal".into())),
+                }
+            }
+            tokens.push(Token::StringLit(s));
         } else if c == '#' {
             // line comment — discard the rest of the input
             break;

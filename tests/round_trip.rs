@@ -73,6 +73,13 @@ fn commands() {
 }
 
 #[test]
+fn import_command() {
+    rt_cmd("import \"lib/complex.rgl\"");
+    rt_cmd("import \"../lib/complex.rgl\"");
+    rt_cmd("import \"some/path/file.rgl\"");
+}
+
+#[test]
 fn parens_only_when_needed() {
     let e = parse_expr("((a + b))").unwrap();
     assert_eq!(print_expr(&e), "a + b");

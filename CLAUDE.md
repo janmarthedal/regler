@@ -43,10 +43,9 @@ The strategy is to get a working end-to-end spine early, then deepen iteratively
 8. **Sets as first-class.** Membership, subset, set-builder — introduced when the first example genuinely needs them (likely with `sin`, `Pos`, etc.).
 9. **Partial AC normalization.** Assoc-only flattens nested applications to n-ary form (order preserved); comm-only sorts the two arguments of a binary application by the kernel's term order. Both compose correctly with identity-element dropping. No new surface syntax.
 10. **Complex numbers.** No new language features — uses only the existing set and rewriting machinery. Adds `ℂ : Set`, `fact ℝ ⊆ ℂ`, `let i : ℂ`, `fact i·i = -1`, and commutativity/associativity for `+` and `·` on ℂ. New runnable example `examples/complex.rgl` demonstrating: `simplify (1 + i)·(1 - i)` → `2`, `simplify i^4` → `1`.
+11. **Multi-line input and imports.** Files are parsed statement-by-statement using indentation-based continuation (a non-empty line whose indent exceeds its statement's first line is a continuation). `import "path.rgl"` loads a file relative to the importing file, brings its names into the flat namespace, and is idempotent; cycles are an error. The REPL keeps its line-at-a-time behaviour. Adds standard library files (e.g. `lib/complex.rgl`) that subsequent examples can import.
 
 ### Upcoming
-
-11. **Multi-line input and imports.** Files are parsed statement-by-statement using indentation-based continuation (a non-empty line whose indent exceeds its statement's first line is a continuation). `import "path.rgl"` loads a file relative to the importing file, brings its names into the flat namespace, and is idempotent; cycles are an error. The REPL keeps its line-at-a-time behaviour. Adds standard library files (e.g. `lib/complex.rgl`) that subsequent examples can import.
 
 12. **Lambda expressions and beta reduction.** `(x : T) ↦ body` is added to the AST, parser, and printer. Beta reduction fires in `simplify`. Pattern matching in facts can match lambda-headed patterns, enabling higher-order operators like `D` and `∫` to be defined by rewrite rules. Open question: scope of this milestone (lambda as definition RHS vs. lambda only in facts).
 
