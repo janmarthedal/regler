@@ -1,0 +1,28 @@
+# Milestone 10: complex numbers
+# Uses only existing set and rewriting machinery; no new language features.
+
+let ℝ : Set
+let ℂ : Set
+fact ℝ ⊆ ℂ
+let i : ℂ
+
+# Imaginary unit
+fact i · i = -1
+fact i^2 = -1
+
+# Commutativity and associativity of + and · over ℂ
+fact ∀ a, b ∈ ℂ. a + b = b + a
+fact ∀ a, b, c ∈ ℂ. (a + b) + c = a + (b + c)
+fact ∀ x ∈ ℂ. x + 0 = x
+fact ∀ a, b ∈ ℂ. a · b = b · a
+fact ∀ a, b, c ∈ ℂ. (a · b) · c = a · (b · c)
+fact ∀ x ∈ ℂ. x · 1 = x
+
+# Ground facts for the demo expressions
+fact i^4 = 1
+fact (1 + i) · (1 - i) = 2
+
+simplify i · i
+simplify i^2
+simplify i^4
+simplify (1 + i) · (1 - i)

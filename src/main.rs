@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 
 use regler::ast::{Command, Expr, Op};
 use regler::kernel::eval::evaluate;
-use regler::kernel::lower::lower;
+use regler::kernel::lower::{lower, lower_fact_body};
 use regler::kernel::print::to_surface;
 use regler::kernel::rewrite::{apply_eq_conditional, simplify};
 use regler::kernel::subst::subst;
@@ -19,6 +19,7 @@ fn main() -> io::Result<()> {
     let mut bindings: HashMap<String, Expr> = HashMap::new();
     let mut kernel_bindings: HashMap<Symbol, Term> = HashMap::new();
     let mut theory = Theory::new();
+    let mut let_declared: HashSet<String> = HashSet::new();
 
     if let Some(path) = env::args().nth(1) {
         let file = File::open(&path).map_err(|e| io::Error::new(e.kind(), format!("{path}: {e}")))?;
@@ -29,7 +30,7 @@ fn main() -> io::Result<()> {
                 continue;
             }
             match parse_command(trimmed) {
-                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory),
+                Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory, &mut let_declared),
                 Ok(None) => {}
                 Err(err) => println!("parse error: {}", err.0),
             }
@@ -51,7 +52,7 @@ fn main() -> io::Result<()> {
             continue;
         }
         match parse_command(trimmed) {
-            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory),
+            Ok(Some(cmd)) => dispatch(cmd, &mut bindings, &mut kernel_bindings, &mut theory, &mut let_declared),
             Ok(None) => {}
             Err(err) => println!("parse error: {}", err.0),
         }
@@ -64,15 +65,16 @@ fn dispatch(
     bindings: &mut HashMap<String, Expr>,
     kernel_bindings: &mut HashMap<Symbol, Term>,
     theory: &mut Theory,
+    let_declared: &mut HashSet<String>,
 ) {
     match cmd {
         Command::Let(name, ty, rhs) => {
             println!("{}", print_command(&Command::Let(name.clone(), ty.clone(), rhs.clone())));
-            handle_let(name, ty, rhs, bindings, kernel_bindings, theory);
+            handle_let(name, ty, rhs, bindings, kernel_bindings, theory, let_declared);
         }
         Command::Fact(name, e, cond) => {
             println!("{}", print_command(&Command::Fact(name.clone(), e.clone(), cond.clone())));
-            install_fact(name, &e, cond.as_ref(), theory);
+            install_fact(name, &e, cond.as_ref(), theory, let_declared);
         }
         Command::Print(e) => {
             let resolved = match &e {
@@ -107,13 +109,18 @@ fn handle_let(
     bindings: &mut HashMap<String, Expr>,
     kernel_bindings: &mut HashMap<Symbol, Term>,
     theory: &mut Theory,
+    let_declared: &mut HashSet<String>,
 ) {
+    let_declared.insert(name.clone());
     match (ty.as_ref(), rhs.as_ref()) {
         // `let Name : Set` — opaque set declaration
-        (Some(Expr::Ident(t)), None) if t == "Set" => {}
+        (Some(Expr::Ident(t)), None) if t == "Set" => {
+            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+        }
 
         // `let Name : Set = {x ∈ S | P}` — predicate set definition
         (Some(Expr::Ident(t)), Some(Expr::SetBuilder(var, domain, pred))) if t == "Set" => {
+            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
             match (lower(domain), lower(pred)) {
                 (Ok(dom_term), Ok(pred_term)) => {
                     theory.add_predicate_set(sym(&name), sym(var), dom_term, pred_term);
@@ -122,8 +129,10 @@ fn handle_let(
             }
         }
 
-        // `let name : ty` — opaque declaration with type annotation (e.g. function signature)
-        (Some(_ty), None) => {}
+        // `let name : ty` — opaque declaration with type annotation (e.g. `let i : ℂ`)
+        (Some(_ty), None) => {
+            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+        }
 
         // `let name [: ty] = rhs` — value definition
         (_, Some(rhs_expr)) => {
@@ -136,7 +145,9 @@ fn handle_let(
             }
         }
 
-        (None, None) => {}
+        (None, None) => {
+            kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+        }
     }
 }
 
@@ -194,14 +205,17 @@ fn run_apply(
 
 /// Install a fact into the theory. If the fact has a `∀ vars ∈ Domain.` prefix
 /// and `Domain` is a predicate-defined set, membership conditions are generated
-/// automatically and merged with any explicit `if` clause.
+/// automatically and merged with any explicit `if` clause. Identifiers that were
+/// declared with `let` (and are not `∀`-bound) are lowered as 0-arity constants
+/// rather than pattern variables.
 fn install_fact(
     name: Option<String>,
     e: &Expr,
     condition: Option<&Expr>,
     theory: &mut Theory,
+    let_declared: &HashSet<String>,
 ) {
-    let (body_expr, binder_cond) = extract_binder_conditions(e, theory);
+    let (body_expr, binder_cond, pvars) = extract_binder_conditions(e, theory);
 
     // Merge binder-generated conditions with explicit `if` condition.
     let merged_cond: Option<Expr> = match (binder_cond, condition.cloned()) {
@@ -211,14 +225,14 @@ fn install_fact(
         (None, None) => None,
     };
 
-    let t = match lower(&body_expr) {
+    let t = match lower_fact_body(&body_expr, &pvars, let_declared) {
         Ok(t) => t,
         Err(err) => {
             println!("note: fact not installed: {}", err.0);
             return;
         }
     };
-    let cond_term = match merged_cond.as_ref().map(lower) {
+    let cond_term = match merged_cond.as_ref().map(|c| lower_fact_body(c, &pvars, let_declared)) {
         Some(Ok(t)) => Some(t),
         Some(Err(err)) => {
             println!("note: condition not installed: {}", err.0);
@@ -256,11 +270,14 @@ fn install_fact(
     }
 }
 
-/// If `e` is `Forall(vars, domain, body)` and `domain` names a predicate-defined
-/// set in `theory`, generate membership conditions `v ∈ domain` for each `v` and
-/// return `(body, Some(conditions))`. Otherwise return `(e, None)`.
-fn extract_binder_conditions(e: &Expr, theory: &Theory) -> (Expr, Option<Expr>) {
+/// If `e` is `Forall(vars, domain, body)`, strip the binder and return
+/// `(body, binder_conditions, pvars)`. The bound variable names are always
+/// returned as `pvars` so they remain pattern wildcards in `lower_fact_body`.
+/// If `domain` is a predicate-defined set, membership conditions are generated
+/// for each variable and returned; otherwise the condition is `None`.
+fn extract_binder_conditions(e: &Expr, theory: &Theory) -> (Expr, Option<Expr>, HashSet<String>) {
     if let Expr::Forall(vars, domain, body) = e {
+        let pvars: HashSet<String> = vars.iter().cloned().collect();
         if let Expr::Ident(domain_name) = domain.as_ref() {
             if theory.predicate_sets.contains_key(&sym(domain_name)) {
                 let conds: Vec<Expr> = vars
@@ -276,12 +293,12 @@ fn extract_binder_conditions(e: &Expr, theory: &Theory) -> (Expr, Option<Expr>) 
                 let cond = conds
                     .into_iter()
                     .reduce(|a, b| Expr::BinOp(Op::And, Box::new(a), Box::new(b)));
-                return (*body.clone(), cond);
+                return (*body.clone(), cond, pvars);
             }
         }
         // Domain is not a predicate set — strip binder, no conditions generated.
-        (*body.clone(), None)
+        (*body.clone(), None, pvars)
     } else {
-        (e.clone(), None)
+        (e.clone(), None, HashSet::new())
     }
 }

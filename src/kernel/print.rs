@@ -21,6 +21,10 @@ pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
         )),
         Term::Var(s) => Ok(Expr::Ident(s.to_string())),
         Term::App(head, args) => {
+            // 0-arity application: declared constant, print as bare identifier
+            if args.is_empty() {
+                return Ok(Expr::Ident(head.to_string()));
+            }
             // Unary negation
             if head.as_ref() == "-" && args.len() == 1 {
                 return Ok(Expr::UnaryOp(

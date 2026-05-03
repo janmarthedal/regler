@@ -152,6 +152,7 @@ fn condition_holds(t: &Term, theory: &Theory) -> bool {
 fn check_membership(elem: &Term, set: &Term, theory: &Theory) -> bool {
     let set_name = match set {
         Term::Var(s) => s,
+        Term::App(s, args) if args.is_empty() => s,
         _ => return false,
     };
     if let Some(ps) = theory.predicate_sets.get(set_name) {

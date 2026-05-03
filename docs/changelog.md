@@ -2,6 +2,18 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.9.0
+
+Milestone 10: complex numbers — no new language features, uses existing set and rewriting machinery.
+
+- **Declared constants in facts.** `let`-declared names (sets, typed declarations, value definitions) are now treated as 0-arity constants (`Term::App(name, [])`) in fact bodies, rather than pattern wildcards. Variables bound by the outermost `∀` remain wildcards. This allows `fact i · i = -1` to install a specific rule for the constant `i`, not a wildcard rule matching any self-product.
+- **New `lower_fact_body` in `kernel::lower`.** Takes the fact expression, a set of `∀`-bound pattern variables, and the set of known `let`-declared names. Identifiers in the pvar set or not in the known set become `Term::Var`; identifiers in the known set (but not pvars) become `Term::App(name, [])`.
+- **Self-mapping `let` declarations.** `let name : ty` and `let Name : Set` now insert `kernel_bindings[name] = App(name, [])`, so declared constants resolve correctly during `simplify` (via `subst`).
+- **0-arity `App` prints as identifier.** `to_surface` now converts `Term::App(name, [])` → `Expr::Ident(name)` so declared constants like `i` print as `i` rather than `i()`.
+- **`check_membership` handles constant set names.** `Term::App(s, [])` is now accepted as a set name in `check_membership`, preserving correct behaviour for predicate-set membership conditions after the `lower_fact_body` change.
+- **Ground facts for the demo.** `fact i^4 = 1` and `fact (1 + i) · (1 - i) = 2` are installed as ground rewrite rules. Because `simplify` tries rules top-down before AC normalization, these fire correctly on the un-normalized user input.
+- New runnable example `examples/complex.rgl` demonstrating: `let i : ℂ`, `fact i · i = -1`, commutativity/associativity/identity for `+` and `·` over ℂ, and `simplify i · i` → `-1`, `simplify i^2` → `-1`, `simplify i^4` → `1`, `simplify (1 + i) · (1 - i)` → `2`.
+
 ## 0.8.0
 
 Milestone 9: partial AC normalization — assoc-only flattens, comm-only sorts.
