@@ -2,6 +2,27 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.11.0
+
+Milestone 12: lambda expressions and beta reduction.
+
+- **`Expr::Lambda(String, Box<Expr>, Box<Expr>)` in the AST.** Surface representation of `(param : ty) ↦ body`.
+- **`Token::MapsTo` in the lexer.** Recognises `↦` (U+21A6) and emits the new token.
+- **Lambda parsing via 3-token lookahead.** In `parse_atom`, when the next three tokens are `LParen Ident Colon`, the parser branches to lambda parsing: consume `(param : ty)`, then `↦`, then the body via `parse_expr(0)`. This handles the ambiguity with ordinary parenthesised expressions cleanly.
+- **Lambda printing.** `fmt_expr` adds parens only when the lambda appears as the left operand of a binary operator (where its body would otherwise greedily absorb the operator). No parens on the RHS of `=` or in function arguments.
+- **`Term::Lam(Symbol, Box<Term>, Box<Term>)` in the kernel.** Variant order is `App < Var < Lam < Nat < Int < Rat`, placing lambdas between variables and numeric literals in the canonical AC sort. Fields are `(param, type, body)`.
+- **`lower` and `lower_fact_body` handle `Expr::Lambda`.** The param is added to `pvars` when lowering the body (so it becomes a `Term::Var` that `pmatch` can track as a bound variable), but not when lowering the type annotation.
+- **Capture-avoiding `subst` for `Term::Lam`.** The bound variable is removed from the substitution map before recursing into the body, preventing variable capture.
+- **Alpha-equivalence in `pmatch`.** `pmatch_into` carries a `bound: HashMap<Symbol, Symbol>` mapping param names in the pattern to their counterparts in the subject. When matching `Lam(p, ...) vs Lam(q, ...)`, `p ↔ q` is added to `bound`; `Var(p)` in the pattern then matches only `Var(q)` in the subject rather than acting as a wildcard.
+- **KBO extended for `Term::Lam`.** Weight: `1 + weight(ty) + weight(body)`. `var_count` does not count the bound variable as free. `collect_vars` removes the bound variable from the body's free variable set. `kbo_gt` at equal weight: `Lam > numerics`, `Lam vs Lam` compared by body.
+- **`is_closed` in `theory.rs` tracks bound variables.** A helper `is_closed_with(t, bound)` recurses with the bound-variable set extended at each `Lam`, correctly determining closure for identity-element detection.
+- **Beta reduction in `simplify`.** `Theory` gains `lambda_defs: HashMap<Symbol, (Symbol, Box<Term>)>` and a `register_lambda` method. When `handle_let` installs a lambda definition, the `(param, body)` is registered. In pass 2 of `simplify`, before arithmetic folding, a call `App(head, [arg])` whose head is in `lambda_defs` is beta-reduced to `subst(body, {param: arg})` and re-simplified.
+- **`apply_eq` and `apply_eq_conditional` recurse into `Lam` bodies.** Named facts can now be applied inside lambda bodies.
+- **`simplify` recurses into `Lam` bodies.** Rewrites fire under binders.
+- **`evaluate` handles `Term::Lam`.** Evaluates the type and body sub-terms.
+- **`to_surface` handles `Term::Lam`.** Converts back to `Expr::Lambda`.
+- **New runnable example `examples/lambda.rgl`.** Demonstrates named lambda definitions with beta reduction (`double(3)` → `6`, `square(4)` → `16`) and lambda patterns in facts for a higher-order `D` operator (`D((x : ℝ) ↦ x)` → `(x : ℝ) ↦ 1`, `D((x : ℝ) ↦ 7)` → `(x : ℝ) ↦ 0`).
+
 ## 0.10.0
 
 Milestone 11: multi-line input and imports.

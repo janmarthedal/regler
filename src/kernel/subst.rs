@@ -15,5 +15,12 @@ pub fn subst(t: &Term, sigma: &HashMap<Symbol, Term>) -> Term {
             let new_args = args.iter().map(|a| subst(a, sigma)).collect();
             Term::App(head.clone(), new_args)
         }
+        // The bound variable shadows any substitution for the same name.
+        Term::Lam(x, ty, body) => {
+            let ty2 = subst(ty, sigma);
+            let mut inner = sigma.clone();
+            inner.remove(x);
+            Term::Lam(x.clone(), Box::new(ty2), Box::new(subst(body, &inner)))
+        }
     }
 }

@@ -33,6 +33,11 @@ pub fn lower(e: &Expr) -> Result<Term, LowerError> {
         Expr::UnaryOp(UnaryOp::Neg, e) => {
             Ok(Term::App(sym("-"), vec![lower(e)?]))
         }
+        Expr::Lambda(param, ty, body) => {
+            let ty_term = lower(ty)?;
+            let body_term = lower(body)?;
+            Ok(Term::Lam(sym(param), Box::new(ty_term), Box::new(body_term)))
+        }
         Expr::Forall(_vars, _domain, body) => lower(body),
         Expr::SetBuilder(_, _, _) => {
             Err(LowerError("set-builder expressions cannot be used as terms".into()))
@@ -79,6 +84,16 @@ fn lower_with(e: &Expr, pvars: &HashSet<String>, known: &HashSet<String>) -> Res
         }
         Expr::UnaryOp(UnaryOp::Neg, e) => {
             Ok(Term::App(sym("-"), vec![lower_with(e, pvars, known)?]))
+        }
+        Expr::Lambda(param, ty, body) => {
+            // The type annotation is lowered in the outer scope (param not yet bound).
+            let ty_term = lower_with(ty, pvars, known)?;
+            // The param is a bound variable inside the body: add it to pvars so it
+            // becomes Term::Var (a matchable name) rather than a 0-arity App constant.
+            let mut new_pvars = pvars.clone();
+            new_pvars.insert(param.clone());
+            let body_term = lower_with(body, &new_pvars, known)?;
+            Ok(Term::Lam(sym(param), Box::new(ty_term), Box::new(body_term)))
         }
         Expr::Forall(vars, _domain, body) => {
             let mut new_pvars = pvars.clone();

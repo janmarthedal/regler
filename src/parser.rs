@@ -301,6 +301,35 @@ impl Parser {
             }
             return Ok(Expr::SetBuilder(var, Box::new(domain), Box::new(pred)));
         }
+        // Lambda: `(param : ty) ↦ body` — detected by 3-token lookahead
+        if matches!(self.peek(), Some(Token::LParen))
+            && matches!(self.tokens.get(self.pos + 1), Some(Token::Ident(_)))
+            && matches!(self.tokens.get(self.pos + 2), Some(Token::Colon))
+        {
+            self.advance(); // consume '('
+            let param = match self.advance() {
+                Some(Token::Ident(s)) => s,
+                _ => unreachable!(),
+            };
+            self.advance(); // consume ':'
+            let ty = self.parse_expr(0)?;
+            match self.advance() {
+                Some(Token::RParen) => {}
+                other => {
+                    return Err(ParseError(format!("expected `)` in lambda, got {other:?}")))
+                }
+            }
+            match self.advance() {
+                Some(Token::MapsTo) => {}
+                other => {
+                    return Err(ParseError(format!(
+                        "expected `↦` after lambda parameter, got {other:?}"
+                    )))
+                }
+            }
+            let body = self.parse_expr(0)?;
+            return Ok(Expr::Lambda(param, Box::new(ty), Box::new(body)));
+        }
         match self.advance() {
             Some(Token::Ident(s)) => {
                 // Check for function application: `f(a, b, ...)`

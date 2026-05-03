@@ -41,6 +41,7 @@ pub enum Token {
     To,
     If,
     Import,
+    MapsTo,  // ↦
 }
 
 #[derive(Debug)]
@@ -182,6 +183,9 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>, LexError> {
                 }
             }
             tokens.push(Token::StringLit(s));
+        } else if c == '↦' {
+            chars.next();
+            tokens.push(Token::MapsTo);
         } else if c == '#' {
             // line comment — discard the rest of the input
             break;

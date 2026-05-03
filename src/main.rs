@@ -197,6 +197,9 @@ fn handle_let(name: String, ty: Option<Expr>, rhs: Option<Expr>, session: &mut S
         (_, Some(rhs_expr)) => {
             match lower(rhs_expr) {
                 Ok(t) => {
+                    if let Term::Lam(ref param, _, ref body) = t {
+                        session.theory.register_lambda(sym(&name), param.clone(), *body.clone());
+                    }
                     session.kernel_bindings.insert(sym(&name), t);
                     session.bindings.insert(name, rhs_expr.clone());
                 }

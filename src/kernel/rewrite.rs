@@ -38,8 +38,20 @@ pub fn simplify(t: &Term, theory: &Theory) -> Term {
         Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => t.clone(),
         Term::App(head, args) => {
             let new_args: Vec<Term> = args.iter().map(|a| simplify(a, theory)).collect();
+            // Beta reduction: if `head` is a lambda-defined name, substitute and recurse.
+            if let Some((param, body)) = theory.lambda_defs.get(head) {
+                if new_args.len() == 1 {
+                    let mut sigma = HashMap::new();
+                    sigma.insert(param.clone(), new_args.into_iter().next().unwrap());
+                    return simplify(&subst(body, &sigma), theory);
+                }
+            }
             let folded = arith_fold(head, new_args);
             normalize_app(folded, theory)
+        }
+        // Simplify inside lambda bodies — rewrites fire under binders.
+        Term::Lam(x, ty, body) => {
+            Term::Lam(x.clone(), Box::new(simplify(ty, theory)), Box::new(simplify(body, theory)))
         }
     };
     // Pass 3: try rules on the bottom-up simplified result
@@ -72,6 +84,15 @@ pub fn apply_eq(lhs: &Term, rhs: &Term, target: &Term) -> Option<Term> {
             }
             None
         }
+        Term::Lam(x, ty, body) => {
+            if let Some(rewritten) = apply_eq(lhs, rhs, ty) {
+                return Some(Term::Lam(x.clone(), Box::new(rewritten), body.clone()));
+            }
+            if let Some(rewritten) = apply_eq(lhs, rhs, body) {
+                return Some(Term::Lam(x.clone(), ty.clone(), Box::new(rewritten)));
+            }
+            None
+        }
         _ => None,
     }
 }
@@ -100,6 +121,15 @@ pub fn apply_eq_conditional(
                     new_args[i] = rewritten;
                     return Some(Term::App(head.clone(), new_args));
                 }
+            }
+            None
+        }
+        Term::Lam(x, ty, body) => {
+            if let Some(rewritten) = apply_eq_conditional(lhs, rhs, cond, ty, theory) {
+                return Some(Term::Lam(x.clone(), Box::new(rewritten), body.clone()));
+            }
+            if let Some(rewritten) = apply_eq_conditional(lhs, rhs, cond, body, theory) {
+                return Some(Term::Lam(x.clone(), ty.clone(), Box::new(rewritten)));
             }
             None
         }

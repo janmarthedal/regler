@@ -17,6 +17,9 @@ pub fn evaluate(t: &Term) -> Result<Term, EvalError> {
             let args: Vec<Term> = args.iter().map(evaluate).collect::<Result<_, _>>()?;
             reduce(head, args)
         }
+        Term::Lam(x, ty, body) => {
+            Ok(Term::Lam(x.clone(), Box::new(evaluate(ty)?), Box::new(evaluate(body)?)))
+        }
     }
 }
 

@@ -44,10 +44,9 @@ The strategy is to get a working end-to-end spine early, then deepen iteratively
 9. **Partial AC normalization.** Assoc-only flattens nested applications to n-ary form (order preserved); comm-only sorts the two arguments of a binary application by the kernel's term order. Both compose correctly with identity-element dropping. No new surface syntax.
 10. **Complex numbers.** No new language features — uses only the existing set and rewriting machinery. Adds `ℂ : Set`, `fact ℝ ⊆ ℂ`, `let i : ℂ`, `fact i·i = -1`, and commutativity/associativity for `+` and `·` on ℂ. New runnable example `examples/complex.rgl` demonstrating: `simplify (1 + i)·(1 - i)` → `2`, `simplify i^4` → `1`.
 11. **Multi-line input and imports.** Files are parsed statement-by-statement using indentation-based continuation (a non-empty line whose indent exceeds its statement's first line is a continuation). `import "path.rgl"` loads a file relative to the importing file, brings its names into the flat namespace, and is idempotent; cycles are an error. The REPL keeps its line-at-a-time behaviour. Adds standard library files (e.g. `lib/complex.rgl`) that subsequent examples can import.
+12. **Lambda expressions and beta reduction.** `(x : T) ↦ body` is added to the AST, parser, printer, and kernel (`Term::Lam`). Beta reduction fires in `simplify` for named lambda definitions (`let f = (x : T) ↦ body`; calls to `f` are reduced). Pattern matching in facts matches lambda-headed patterns with alpha-equivalence tracking, enabling higher-order operators like `D` to be defined by rewrite rules. New runnable example `examples/lambda.rgl`.
 
 ### Upcoming
-
-12. **Lambda expressions and beta reduction.** `(x : T) ↦ body` is added to the AST, parser, and printer. Beta reduction fires in `simplify`. Pattern matching in facts can match lambda-headed patterns, enabling higher-order operators like `D` and `∫` to be defined by rewrite rules. Open question: scope of this milestone (lambda as definition RHS vs. lambda only in facts).
 
 13. **Derivatives.** `D` declared as `(ℝ → ℝ) → (ℝ → ℝ)`. Facts for: constant rule, identity rule, linearity, product rule, chain rule, and known derivatives (`sin`, `cos`, `exp`, `log`). `simplify` computes symbolic derivatives of polynomial and composed expressions. New runnable example `examples/deriv.rgl`.
 

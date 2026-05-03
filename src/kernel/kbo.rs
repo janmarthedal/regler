@@ -88,9 +88,14 @@ fn kbo_gt(s: &Term, t: &Term) -> bool {
             false
         }
         (Term::App(f, _), Term::App(g, _)) => prec_gt(f, g),
-        // App > all numeric literals
+        // App > everything else at same weight
         (Term::App(_, _), _) => true,
         (_, Term::App(_, _)) => false,
+        // Lam vs Lam: compare bodies lexicographically
+        (Term::Lam(_, _, sb), Term::Lam(_, _, tb)) => kbo_gt(sb, tb),
+        // Lam > numeric literals at same weight
+        (Term::Lam(_, _, _), _) => true,
+        (_, Term::Lam(_, _, _)) => false,
         // All remaining cases: both terms are numeric — compare by value
         _ => num_to_rat(s) > num_to_rat(t),
     }
@@ -109,6 +114,7 @@ fn weight(t: &Term) -> u64 {
     match t {
         Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => 1,
         Term::App(_, args) => 1 + args.iter().map(weight).sum::<u64>(),
+        Term::Lam(_, ty, body) => 1 + weight(ty) + weight(body),
     }
 }
 
@@ -116,13 +122,13 @@ fn var_count(t: &Term, x: &Symbol) -> u64 {
     match t {
         Term::Nat(_) | Term::Int(_) | Term::Rat(_) => 0,
         Term::Var(s) => {
-            if s == x {
-                1
-            } else {
-                0
-            }
+            if s == x { 1 } else { 0 }
         }
         Term::App(_, args) => args.iter().map(|a| var_count(a, x)).sum(),
+        // x is not free in the body if it equals the bound variable.
+        Term::Lam(p, ty, body) => {
+            var_count(ty, x) + if p == x { 0 } else { var_count(body, x) }
+        }
     }
 }
 
@@ -136,6 +142,13 @@ fn collect_vars(t: &Term, out: &mut HashSet<Symbol>) {
             for a in args {
                 collect_vars(a, out);
             }
+        }
+        Term::Lam(p, ty, body) => {
+            collect_vars(ty, out);
+            let mut body_vars = HashSet::new();
+            collect_vars(body, &mut body_vars);
+            body_vars.remove(p);
+            out.extend(body_vars);
         }
     }
 }

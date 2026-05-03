@@ -1,0 +1,20 @@
+# Milestone 12: lambda expressions and beta reduction
+
+let ℝ : Set
+
+# Named lambda definitions — beta reduction fires when applied
+let double = (x : ℝ) ↦ 2·x
+simplify double(3)
+
+let square = (x : ℝ) ↦ x^2
+simplify square(4)
+
+# Lambdas as first-class values in facts
+# D is declared as a higher-order operator; its rules use lambda patterns
+let D : (ℝ → ℝ) → (ℝ → ℝ)
+
+fact D((x : ℝ) ↦ x) = (x : ℝ) ↦ 1
+simplify D((x : ℝ) ↦ x)
+
+fact ∀ c ∈ ℝ. D((x : ℝ) ↦ c) = (x : ℝ) ↦ 0
+simplify D((x : ℝ) ↦ 7)

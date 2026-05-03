@@ -20,6 +20,11 @@ pub fn to_surface(t: &Term) -> Result<Expr, UnprintableError> {
             Box::new(Expr::Int(r.denom().clone())),
         )),
         Term::Var(s) => Ok(Expr::Ident(s.to_string())),
+        Term::Lam(x, ty, body) => Ok(Expr::Lambda(
+            x.to_string(),
+            Box::new(to_surface(ty)?),
+            Box::new(to_surface(body)?),
+        )),
         Term::App(head, args) => {
             // 0-arity application: declared constant, print as bare identifier
             if args.is_empty() {

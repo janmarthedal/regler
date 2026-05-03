@@ -106,6 +106,23 @@ fn fmt_expr(e: &Expr, parent: u8, side: Side, out: &mut String) {
                 out.push(')');
             }
         }
+        Expr::Lambda(param, ty, body) => {
+            // Parens needed only when lambda is the LEFT operand of a binary
+            // operator, to prevent the body from greedily absorbing it.
+            let needs = matches!(side, Side::Left);
+            if needs {
+                out.push('(');
+            }
+            out.push('(');
+            out.push_str(param);
+            out.push_str(" : ");
+            fmt_expr(ty, 0, Side::Top, out);
+            out.push_str(") ↦ ");
+            fmt_expr(body, 0, Side::Top, out);
+            if needs {
+                out.push(')');
+            }
+        }
         Expr::SetBuilder(var, domain, pred) => {
             out.push('{');
             out.push_str(var);

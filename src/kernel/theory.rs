@@ -91,6 +91,9 @@ pub struct Theory {
     pub rules: Vec<Rule>,
     pub named: HashMap<Symbol, NamedFact>,
     pub predicate_sets: HashMap<Symbol, PredicateSet>,
+    /// Lambda-defined names: maps `f` to `(param, body)` so that `f(arg)`
+    /// can be beta-reduced to `body[param := arg]` during simplification.
+    pub lambda_defs: HashMap<Symbol, (Symbol, Box<Term>)>,
     ac: HashSet<Symbol>,
     saw_comm: HashSet<Symbol>,
     saw_assoc: HashSet<Symbol>,
@@ -105,6 +108,11 @@ impl Theory {
 
     pub fn add_predicate_set(&mut self, name: Symbol, var: Symbol, domain: Term, pred: Term) {
         self.predicate_sets.insert(name, PredicateSet { var, domain, pred });
+    }
+
+    /// Register a lambda definition so the simplifier can beta-reduce calls to `name`.
+    pub fn register_lambda(&mut self, name: Symbol, param: Symbol, body: Term) {
+        self.lambda_defs.insert(name, (param, Box::new(body)));
     }
 
     pub fn is_ac(&self, f: &Symbol) -> bool {
@@ -337,9 +345,20 @@ fn as_var(t: &Term) -> Option<&Symbol> {
 }
 
 fn is_closed(t: &Term) -> bool {
+    is_closed_with(t, &HashSet::new())
+}
+
+fn is_closed_with(t: &Term, bound: &HashSet<Symbol>) -> bool {
     match t {
         Term::Nat(_) | Term::Int(_) | Term::Rat(_) => true,
-        Term::Var(_) => false,
-        Term::App(_, args) => args.iter().all(is_closed),
+        Term::Var(s) => bound.contains(s),
+        Term::App(_, args) => args.iter().all(|a| is_closed_with(a, bound)),
+        Term::Lam(p, ty, body) => {
+            is_closed_with(ty, bound) && {
+                let mut inner = bound.clone();
+                inner.insert(p.clone());
+                is_closed_with(body, &inner)
+            }
+        }
     }
 }

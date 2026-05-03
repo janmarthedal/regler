@@ -12,6 +12,8 @@ pub enum Expr {
     Forall(Vec<String>, Box<Expr>, Box<Expr>),
     /// `{var ∈ domain | pred}` — predicate-subset comprehension
     SetBuilder(String, Box<Expr>, Box<Expr>),
+    /// `(param : ty) ↦ body` — lambda expression
+    Lambda(String, Box<Expr>, Box<Expr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
