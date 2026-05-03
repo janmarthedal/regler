@@ -1,6 +1,6 @@
-# Syntax notes
+# Syntax
 
-Working notes on concrete syntax. Decisions here are tentative — recorded so the design conversation can resume later without rederiving everything.
+Authoritative record of concrete syntax decisions for **regler**.
 
 ## Bindings (`let`)
 
@@ -27,7 +27,7 @@ When the annotation is omitted, the kernel infers the *smallest containing set*:
 | `(1, 2)`         | `ℕ × ℕ`       |
 | `(x : ℝ) ↦ 2·x`  | `ℝ → ℝ`       |
 
-Writing an explicit annotation that is *wider* than the inferred type is always allowed — the kernel verifies membership via subset coercion. Writing one that is *narrower* (e.g., `let small : Pos = 1/2`) creates a proof obligation; see *Narrowing proof obligations* below.
+Writing an explicit annotation that is *wider* than the inferred type is always allowed — the kernel verifies membership via subset coercion. Writing one that is *narrower* (e.g., `let small : Pos = 1/2`) creates a proof obligation; see *Narrowing proof obligations* under Values.
 
 There is no function- or set-definition sugar. A function (or parameterized set) defined by an equation is always written as a declaration plus a `fact`. Sugar may be reintroduced later if it proves consistently useful.
 
@@ -136,27 +136,19 @@ Operators are grouped into three layers — terms (numeric and set-valued), atom
 - **No implicit multiplication.** `2x` is not `2·x`; the `·` is required.
 - **No assignment**, so `=` is unambiguously equality.
 
-### Things deferred
-
-- **Superscript powers** (`x²`) — depends on identifier rules; defer.
-- **Inline `if then else`** is listed at level 18 but its necessity is open; conditional behavior can be encoded via separate facts with `if` side conditions for now.
-
 ### Infix operators
 
 - **Infix is surface syntax only.** The kernel's internal representation of every compound expression is uniform prefix application `head(args)`. `a + b` is parsed to `+(a, b)`; the printer emits the infix form back. AC recognition, KBO, identity-element marking, pattern matching, and substitution all operate on the prefix form.
 - **The infix token is the head's name.** `+`, `·`, `∘`, `∪`, etc. are themselves the kernel symbols — no separate alphanumeric alias (`add`, `mul`, …) is introduced. A user-declared library symbol that wants to participate in an infix slot uses its own name there: `let ∘ : …` declares the symbol `∘`, which the parser already knows is infix at level 5.
-- **The fixed table.** The precedence table above lists every infix and prefix operator the parser recognizes initially. Adding a new infix operator currently requires editing this table; user-defined fixity is deferred (see `syntax-open-questions.md`).
+- **The fixed table.** The precedence table above lists every infix and prefix operator the parser recognizes initially. Adding a new infix operator currently requires editing this table; user-defined fixity is deferred.
 - **Prefix-form use of an infix symbol.** Whether `+(a, b)` is accepted as an alternative surface form for `a + b` (useful for higher-order contexts like passing `+` as a function) is open — defer until a real example needs it.
 - **Turnstile `⊢`** is reserved for future theorem/proof syntax; it has no role yet and no precedence slot.
 
 ## Sets
 
-### Decisions so far
-
 - Sets are values declared with `let`; their sort is the universe `Set`. They can be named, passed as arguments, returned from functions.
 - **First-class but bounded.** A fixed vocabulary of operations (`∪`, `∩`, `\`, `×`, `→`, set-builder) is provided. `Set` itself is a universe, not a member of any set — you cannot write `Set : Set`.
 - **No declaration-time constraint sugar.** `let ℝ : Set ⊇ ℚ` is *not* allowed. The verbose form `let ℝ : Set; fact ℚ ⊆ ℝ` is required. This keeps declarations and facts cleanly separated.
-- **Six conceptual forms** of set declaration/definition (see below).
 
 ### The forms
 
@@ -250,15 +242,7 @@ let union_check : ℕ ∪ {-1, -2} → ℤ
 let sum_over : {n ∈ ℕ | n ≤ 10} → ℕ
 ```
 
-### Open questions
-
-- **The declaration-then-fact pattern.** Verbose for long subset chains (ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ requires 4 separate facts) and for parameterized sets. Acceptable for now; revisit if it becomes painful in real examples.
-- **ASCII fallbacks.** Whether `in`, `subset`, `forall`, etc. are accepted alongside the Unicode forms — deferred.
-- **Sort of `Set`.** Treated as a universe: `S : Set` is a sort annotation in `let`, and `∀ S ∈ Set. P` is binding-shorthand under a quantifier, but `S ∈ Set` is *not* a writable proposition. Whether the language ever needs a higher universe is deferred — not needed for current goals.
-
 ## Facts
-
-### Decisions so far
 
 - Keyword: `fact`. Used to assert any statement the system should treat as given — equalities, subset claims, membership claims, the defining equations of declared functions and parameterized sets, and **top-level logical claims** (implications `⇒` and disjunctions `∨` at the outermost level of the proposition, after any leading `∀`). Top-level logical claims are accepted as asserted truths but **do not participate in rewriting** — they are not equalities, so the auto-orientation and AC-recognition machinery does not apply, and they cannot be invoked via `apply`. They become useful once a proof or decision-procedure story exists; until then they are inert as far as `simplify` is concerned. Side conditions on a top-level logical claim use the same `if` clause as elsewhere.
 - **One keyword for all asserted statements.** The syntax does not distinguish "axioms" (taken as fundamental) from "definitions" (introducing meaning); both are facts the kernel is told. A future `theorem` keyword may be added for proved statements.
@@ -282,8 +266,6 @@ fact ∀ a, b ∈ ℤ. a · b = 0 ⇒ a = 0 ∨ b = 0                       # to
 ```
 
 ## Values
-
-### Decisions so far
 
 - Declared with `let` (see Bindings).
 - **Every value belongs to a set.** The set appears as the sort annotation in the `let`. Concrete values use sets like ℝ; set-valued things use the universe `Set`.
@@ -403,17 +385,12 @@ Worked examples (*lub* = least upper bound, i.e., the smallest set in the subset
 
 The "weak" form of outside-in is deliberate: typing `1/2` *as* a ℝ operation just because the binding is ℝ would be wrong for a CAS — exact ℝ arithmetic isn't generally available, and rationality is information worth preserving.
 
-This rule covers operators whose signatures lie along the ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ chain. **Non-chain overloading** (a `·` on matrices, polynomial rings, etc.) needs a partial-order generalization — "smallest containing set with a defined signature" becomes "most specific instance". Deferred until non-chain cases actually arise.
-
-### Open questions
-
-- **Non-chain operator overloading.** Generalizing the resolution rule beyond the ℕ–ℂ subset chain (matrices, polynomial rings, etc.). Deferred until those cases arrive.
+This rule covers operators whose signatures lie along the ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ chain. **Non-chain overloading** (a `·` on matrices, polynomial rings, etc.) needs a partial-order generalization — "smallest containing set" becomes "most specific instance". Deferred until non-chain cases actually arise.
 
 ## Queries and rewriting
 
-### Decisions so far
+A small command layer at top level, parallel to `let` and `fact`. Commands are how the user *does* things — they don't introduce names or assert claims, they ask the kernel to compute or transform something.
 
-- A small command layer at top level, parallel to `let` and `fact`. Commands are how the user *does* things — they don't introduce names or assert claims, they ask the kernel to compute or transform something.
 - **Expression comes last.** Commands put the operation and its parameters first, the expression they act on at the end. This keeps the verb and any fact names visible at the top of a multi-line invocation, with the expression flowing below.
 - Initial command set:
   - `simplify <expr>` — apply auto-oriented rewrites, AC normalization, identity-element absorption, and literal arithmetic to a fixed point.
@@ -438,15 +415,7 @@ apply ← log_product to
 evaluate 2^10 + 3·5
 ```
 
-### Open questions
-
-- **Localizing a rewrite.** Whether `apply` grows an `at <path>` clause to target a subterm, or whether a separate `rewrite … in … at …` form is needed. Deferred until examples demand it.
-- **Composing commands.** Whether commands chain (`apply f1 to e |> apply f2`) or whether multi-step rewrites are written as a sequence of `let`-bound intermediates. Deferred.
-- **REPL vs. file form.** Whether the same command syntax is used at a REPL prompt and inside a file, or whether the REPL gets a terser prefix. Deferred.
-
 ## Term order
-
-### Decisions so far
 
 - **The kernel uses Knuth–Bendix Order (KBO)** as its well-founded term order for auto-orientation. Each symbol has a non-negative weight; comparison is by total weight first, then by precedence on the head, then lexicographically on arguments. This aligns "smaller" with "fewer symbols," matching the user's intuition of simpler. Equalities whose two sides are KBO-incomparable (e.g., distributivity) remain user-invoked.
 - **Per-symbol weights.** Each symbol carries a weight, default `1`, settable at the symbol's declaration site. Variables share a single fixed weight `w₀ = 1`. KBO admissibility allows at most one symbol of weight 0, which must be unary and maximal in precedence; deferred until a use case appears.
@@ -459,15 +428,7 @@ precedence: + < · < ^ < f < g
 - **Why a block, not per-symbol numeric annotations.** Precedence is inherently relative; absolute numbers force gap-and-renumber discipline and scatter the global picture across many sites. A single block keeps the order visible in one place and maps directly to KBO's mathematical definition (a strict order on symbols).
 - **Why not implicit declaration order.** Reordering declarations would silently change auto-orientation, and cross-file imports would make the global order fragile.
 
-### Open questions
-
-- **Cross-module merge semantics.** Exact behavior when two modules' precedence fragments conflict (hard error vs. require explicit re-statement at the import site). Deferred until multi-file examples exist.
-- **Weight-0 unary symbol.** Whether to expose KBO's allowance for a single weight-0 unary symbol (e.g., for negation or a "free" wrapper). Deferred.
-- **AC-KBO.** AC operators are flattened and sorted before comparison; the exact AC-KBO variant used (and how operand multiset comparison interacts with the lex tiebreak) is deferred to the kernel-implementation phase.
-
 ## AC recognition
-
-### Decisions so far
 
 - **Pattern recognition is syntactic, up to obvious normalization.** A fact is recognized as commutativity for `f` if it has the shape `∀ <vars>. f(a, b) = f(b, a)` with `a` and `b` distinct bound variables (α-renaming irrelevant). A fact is recognized as associativity for `f` if it has shape `∀ <vars>. f(f(a, b), c) = f(a, f(b, c))` *or* its mirror `∀ <vars>. f(a, f(b, c)) = f(f(a, b), c)`, with `a`, `b`, `c` distinct bound variables. Side conditions (`if …`) on the fact disqualify it from AC recognition. The kernel does not attempt to prove that an arbitrary fact is logically equivalent to AC — recognition is a syntactic gate, not a semantic one.
 - **Partial AC is tracked with independent flags.** Each operator carries two flags, `commutative` and `associative`, set independently as the corresponding facts are read.
@@ -478,14 +439,7 @@ precedence: + < · < ^ < f < g
 - **Marking is per-(symbol, set).** `fact ∀ x, y ∈ ℝ. x + y = y + x` marks `+` commutative *on ℝ*, not on `+` globally. An application `a + b` is treated as commutative only when both operands' types are subsets of the set `S` over which the AC fact was stated. To get AC on a wider set the user states the fact again at that set; a separate fact relating the two signatures is what would license lifting, and that machinery is not provided.
   - Consequence: along the ℕ ⊆ ℤ ⊆ ℚ ⊆ ℝ ⊆ ℂ chain, commutativity and associativity for arithmetic operators must be stated at the widest set used in practice (typically ℂ) and rely on implicit promotion to bring narrower operands up before the operator applies. A library may state them once at ℂ and once at any narrower set whose closure under the operator the user wants to reason about without promotion.
 
-### Open questions
-
-- **Lifting AC marks along subset chains.** Whether to grow a mechanism that propagates an AC mark from `S` to `T` when `S ⊆ T` and the operator's signatures on `S` and `T` are known to agree on `S`. Deferred until a concrete example shows the per-set restatement is painful.
-- **Recognizing AC up to AC.** Once `+` is AC-marked, a later fact like `∀ a, b, c. a + b + c = c + b + a` is provable (by AC) but not in the canonical commutativity shape. Whether such facts should be silently accepted as redundant or rejected is open.
-
 ## File structure and imports
-
-### Decisions so far
 
 - **Imports are top-level statements**, parallel to `let` and `fact`:
 
@@ -499,10 +453,3 @@ precedence: + < · < ^ < f < g
 - **Precedence fragments merge** across imported files per the rule under *Term order*; inconsistent constraints are an error.
 - **Cycles are an error.** Double-imports are idempotent: a file is loaded once regardless of how many paths reach it.
 - **Transitive exposure.** Importing A, which imports B, exposes B's names to A's importer. (Simplest rule consistent with the flat namespace; revisit if it causes pain.)
-
-### Open questions
-
-- **Qualified import.** `import "foo.reg" as Foo` → `Foo.bar`. Would introduce a second namespace layer that doesn't currently exist; deferred until flat-namespace collisions become painful.
-- **Selective import.** `import {sin, cos} from "trig.reg"`. Deferred.
-- **Search path / standard-library prefix.** `import std/arith` as a second form alongside the relative-path form. Deferred.
-- **Tradeoff to revisit.** Flat-namespace imports match the existing one-symbol-table design and are simplest, but make collisions a real risk as the library grows. Adding qualified imports later would be a breaking change for existing files — flag this if a real example shows several libraries colliding.
