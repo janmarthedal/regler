@@ -12,10 +12,14 @@ pub struct EvalError(pub String);
 /// applications and free variables are returned unchanged.
 pub fn evaluate(t: &Term) -> Result<Term, EvalError> {
     match t {
-        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => Ok(t.clone()),
+        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => Ok(t.clone()),
         Term::App(head, args) => {
+            let head = evaluate(head)?;
             let args: Vec<Term> = args.iter().map(evaluate).collect::<Result<_, _>>()?;
-            reduce(head, args)
+            match &head {
+                Term::Sym(s) => reduce(s, args),
+                _ => Ok(Term::App(Box::new(head), args)),
+            }
         }
         Term::Lam(x, ty, body) => {
             Ok(Term::Lam(x.clone(), Box::new(evaluate(ty)?), Box::new(evaluate(body)?)))
@@ -64,7 +68,7 @@ fn reduce(head: &str, args: Vec<Term>) -> Result<Term, EvalError> {
             _ => {}
         }
     }
-    Ok(Term::App(sym(head), args))
+    Ok(Term::App(Box::new(Term::Sym(sym(head))), args))
 }
 
 /// Convert a numeric `Term` to `BigRational`. Returns `None` for non-numeric terms.

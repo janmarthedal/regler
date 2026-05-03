@@ -35,19 +35,47 @@ pub fn simplify(t: &Term, theory: &Theory) -> Term {
     }
     // Pass 2: bottom-up — simplify children, arithmetic, AC, identities
     let t1 = match t {
-        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => t.clone(),
+        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => t.clone(),
         Term::App(head, args) => {
+            let new_head = simplify(head, theory);
             let new_args: Vec<Term> = args.iter().map(|a| simplify(a, theory)).collect();
-            // Beta reduction: if `head` is a lambda-defined name, substitute and recurse.
-            if let Some((param, body)) = theory.lambda_defs.get(head) {
+
+            // Extract cloned head info to avoid borrow conflicts when consuming new_args.
+            let lam_info: Option<(Symbol, Term)> = match &new_head {
+                Term::Lam(param, _, body) => Some((param.clone(), body.as_ref().clone())),
+                _ => None,
+            };
+            let sym_head: Option<Symbol> = match &new_head {
+                Term::Sym(h) => Some(h.clone()),
+                _ => None,
+            };
+
+            // Beta reduction: direct Lam applied to a single arg.
+            if let Some((param, body)) = lam_info {
                 if new_args.len() == 1 {
                     let mut sigma = HashMap::new();
-                    sigma.insert(param.clone(), new_args.into_iter().next().unwrap());
-                    return simplify(&subst(body, &sigma), theory);
+                    sigma.insert(param, new_args.into_iter().next().unwrap());
+                    return simplify(&subst(&body, &sigma), theory);
                 }
             }
-            let folded = arith_fold(head, new_args);
-            normalize_app(folded, theory)
+
+            // Sym head: try named lambda defs, then arith fold + normalize.
+            if let Some(h) = sym_head {
+                if let Some((param, body)) = theory.lambda_defs.get(&h) {
+                    if new_args.len() == 1 {
+                        let param = param.clone();
+                        let body = body.as_ref().clone();
+                        let mut sigma = HashMap::new();
+                        sigma.insert(param, new_args.into_iter().next().unwrap());
+                        return simplify(&subst(&body, &sigma), theory);
+                    }
+                }
+                let folded = arith_fold(&h, new_args);
+                return normalize_app(folded, theory);
+            }
+
+            // Non-Sym head (Var or multi-arg Lam): reconstruct unchanged.
+            Term::App(Box::new(new_head), new_args)
         }
         // Simplify inside lambda bodies — rewrites fire under binders.
         Term::Lam(x, ty, body) => {
@@ -156,22 +184,25 @@ fn condition_ok(cond: Option<&Term>, sigma: &HashMap<Symbol, Term>, theory: &The
 fn condition_holds(t: &Term, theory: &Theory) -> bool {
     match t {
         Term::App(head, args) if args.len() == 2 => match head.as_ref() {
-            "∧" => condition_holds(&args[0], theory) && condition_holds(&args[1], theory),
-            "∨" => condition_holds(&args[0], theory) || condition_holds(&args[1], theory),
-            "∈" => check_membership(&args[0], &args[1], theory),
-            _ => {
-                let a = term_to_rat(&args[0]);
-                let b = term_to_rat(&args[1]);
-                match (head.as_ref(), a, b) {
-                    ("=",  Some(a), Some(b)) => a == b,
-                    ("≠",  Some(a), Some(b)) => a != b,
-                    (">",  Some(a), Some(b)) => a > b,
-                    ("<",  Some(a), Some(b)) => a < b,
-                    ("≥",  Some(a), Some(b)) => a >= b,
-                    ("≤",  Some(a), Some(b)) => a <= b,
-                    _ => false,
+            Term::Sym(h) => match h.as_ref() {
+                "∧" => condition_holds(&args[0], theory) && condition_holds(&args[1], theory),
+                "∨" => condition_holds(&args[0], theory) || condition_holds(&args[1], theory),
+                "∈" => check_membership(&args[0], &args[1], theory),
+                _ => {
+                    let a = term_to_rat(&args[0]);
+                    let b = term_to_rat(&args[1]);
+                    match (h.as_ref(), a, b) {
+                        ("=",  Some(a), Some(b)) => a == b,
+                        ("≠",  Some(a), Some(b)) => a != b,
+                        (">",  Some(a), Some(b)) => a > b,
+                        ("<",  Some(a), Some(b)) => a < b,
+                        ("≥",  Some(a), Some(b)) => a >= b,
+                        ("≤",  Some(a), Some(b)) => a <= b,
+                        _ => false,
+                    }
                 }
-            }
+            },
+            _ => false,
         },
         _ => false,
     }
@@ -181,8 +212,11 @@ fn condition_holds(t: &Term, theory: &Theory) -> bool {
 /// evaluating it at `elem`.
 fn check_membership(elem: &Term, set: &Term, theory: &Theory) -> bool {
     let set_name = match set {
-        Term::Var(s) => s,
-        Term::App(s, args) if args.is_empty() => s,
+        Term::Var(s) | Term::Sym(s) => s,
+        Term::App(h, args) if args.is_empty() => match h.as_ref() {
+            Term::Sym(s) => s,
+            _ => return false,
+        },
         _ => return false,
     };
     if let Some(ps) = theory.predicate_sets.get(set_name) {
@@ -196,18 +230,21 @@ fn check_membership(elem: &Term, set: &Term, theory: &Theory) -> bool {
 }
 
 fn normalize_app(t: Term, theory: &Theory) -> Term {
-    let (head, args) = match t {
-        Term::App(head, args) => (head, args),
+    let (head_sym, args) = match t {
+        Term::App(head, args) => match *head {
+            Term::Sym(s) => (s, args),
+            other => return Term::App(Box::new(other), args),
+        },
         other => return other,
     };
-    if theory.is_ac(&head) {
-        ac_normalize(&head, args, theory)
-    } else if theory.is_assoc_only(&head) {
-        assoc_only_normalize(head, args, theory)
-    } else if theory.is_comm_only(&head) {
-        comm_only_normalize(head, args, theory)
+    if theory.is_ac(&head_sym) {
+        ac_normalize(&head_sym, args, theory)
+    } else if theory.is_assoc_only(&head_sym) {
+        assoc_only_normalize(head_sym, args, theory)
+    } else if theory.is_comm_only(&head_sym) {
+        comm_only_normalize(head_sym, args, theory)
     } else {
-        identity_drop_binary(head, args, theory)
+        identity_drop_binary(head_sym, args, theory)
     }
 }
 
@@ -215,7 +252,9 @@ fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     let mut flat: Vec<Term> = Vec::with_capacity(args.len());
     for a in args {
         match a {
-            Term::App(h, sub) if &h == head => flat.extend(sub),
+            Term::App(h, sub) if matches!(h.as_ref(), Term::Sym(s) if s == head) => {
+                flat.extend(sub)
+            }
             other => flat.push(other),
         }
     }
@@ -230,9 +269,9 @@ fn ac_normalize(head: &Symbol, args: Vec<Term>, theory: &Theory) -> Term {
     flat.sort();
 
     match flat.len() {
-        0 => identity.unwrap_or(Term::App(head.clone(), Vec::new())),
+        0 => identity.unwrap_or(Term::App(Box::new(Term::Sym(head.clone())), Vec::new())),
         1 => flat.into_iter().next().unwrap(),
-        _ => Term::App(head.clone(), flat),
+        _ => Term::App(Box::new(Term::Sym(head.clone())), flat),
     }
 }
 
@@ -245,7 +284,9 @@ fn assoc_only_normalize(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term 
     let mut flat: Vec<Term> = Vec::with_capacity(args.len());
     for a in args {
         match a {
-            Term::App(h, sub) if h == head => flat.extend(sub),
+            Term::App(h, sub) if matches!(h.as_ref(), Term::Sym(s) if s == &head) => {
+                flat.extend(sub)
+            }
             other => flat.push(other),
         }
     }
@@ -287,11 +328,11 @@ fn assoc_only_normalize(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term 
 
     match flat.len() {
         0 => {
-            let id = right_id.or(left_id).unwrap_or(Term::App(head.clone(), Vec::new()));
+            let id = right_id.or(left_id).unwrap_or(Term::App(Box::new(Term::Sym(head.clone())), Vec::new()));
             id
         }
         1 => flat.into_iter().next().unwrap(),
-        _ => Term::App(head, flat),
+        _ => Term::App(Box::new(Term::Sym(head)), flat),
     }
 }
 
@@ -350,7 +391,7 @@ fn identity_drop_binary(head: Symbol, args: Vec<Term>, theory: &Theory) -> Term 
             }
         }
     }
-    Term::App(head, args)
+    Term::App(Box::new(Term::Sym(head)), args)
 }
 
 fn arith_fold(head: &Symbol, args: Vec<Term>) -> Term {
@@ -363,7 +404,7 @@ fn arith_fold(head: &Symbol, args: Vec<Term>) -> Term {
                         "-" => a - b,
                         "·" => a * b,
                         "/" if !b.is_zero() => a / b,
-                        _ => return Term::App(head.clone(), args),
+                        _ => return Term::App(Box::new(Term::Sym(head.clone())), args),
                     };
                     return rat_to_term(result);
                 }
@@ -378,5 +419,5 @@ fn arith_fold(head: &Symbol, args: Vec<Term>) -> Term {
             _ => {}
         }
     }
-    Term::App(head.clone(), args)
+    Term::App(Box::new(Term::Sym(head.clone())), args)
 }

@@ -153,13 +153,13 @@ impl Theory {
         condition: Option<&Term>,
     ) -> Vec<FactEffect> {
         let (l, r) = match t {
-            Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => {
-                (&args[0], &args[1])
-            }
-            Term::App(head, _) if head.as_ref() == "⊆" => {
-                // Subset claims are accepted but not used for rewriting yet.
-                return vec![FactEffect::SubsetFact];
-            }
+            Term::App(head, args) if args.len() == 2 => match head.as_ref() {
+                Term::Sym(h) if h.as_ref() == "=" => (&args[0], &args[1]),
+                Term::Sym(h) if h.as_ref() == "⊆" => {
+                    return vec![FactEffect::SubsetFact];
+                }
+                _ => return vec![FactEffect::NotEquality],
+            },
             _ => return vec![FactEffect::NotEquality],
         };
 
@@ -327,7 +327,10 @@ fn match_left_identity(l: &Term, r: &Term) -> Option<(Symbol, Term)> {
 
 fn bin_app(t: &Term) -> Option<(&Symbol, &Term, &Term)> {
     match t {
-        Term::App(f, args) if args.len() == 2 => Some((f, &args[0], &args[1])),
+        Term::App(head, args) if args.len() == 2 => match head.as_ref() {
+            Term::Sym(f) => Some((f, &args[0], &args[1])),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -350,9 +353,11 @@ fn is_closed(t: &Term) -> bool {
 
 fn is_closed_with(t: &Term, bound: &HashSet<Symbol>) -> bool {
     match t {
-        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => true,
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => true,
         Term::Var(s) => bound.contains(s),
-        Term::App(_, args) => args.iter().all(|a| is_closed_with(a, bound)),
+        Term::App(head, args) => {
+            is_closed_with(head, bound) && args.iter().all(|a| is_closed_with(a, bound))
+        }
         Term::Lam(p, ty, body) => {
             is_closed_with(ty, bound) && {
                 let mut inner = bound.clone();

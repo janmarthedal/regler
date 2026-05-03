@@ -174,12 +174,12 @@ fn handle_let(name: String, ty: Option<Expr>, rhs: Option<Expr>, session: &mut S
     match (ty.as_ref(), rhs.as_ref()) {
         // `let Name : Set` — opaque set declaration
         (Some(Expr::Ident(t)), None) if t == "Set" => {
-            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::Sym(sym(&name)));
         }
 
         // `let Name : Set = {x ∈ S | P}` — predicate set definition
         (Some(Expr::Ident(t)), Some(Expr::SetBuilder(var, domain, pred))) if t == "Set" => {
-            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::Sym(sym(&name)));
             match (lower(domain), lower(pred)) {
                 (Ok(dom_term), Ok(pred_term)) => {
                     session.theory.add_predicate_set(sym(&name), sym(var), dom_term, pred_term);
@@ -190,7 +190,7 @@ fn handle_let(name: String, ty: Option<Expr>, rhs: Option<Expr>, session: &mut S
 
         // `let name : ty` — opaque declaration with type annotation (e.g. `let i : ℂ`)
         (Some(_ty), None) => {
-            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::Sym(sym(&name)));
         }
 
         // `let name [: ty] = rhs` — value definition
@@ -208,7 +208,7 @@ fn handle_let(name: String, ty: Option<Expr>, rhs: Option<Expr>, session: &mut S
         }
 
         (None, None) => {
-            session.kernel_bindings.insert(sym(&name), Term::App(sym(&name), vec![]));
+            session.kernel_bindings.insert(sym(&name), Term::Sym(sym(&name)));
         }
     }
 }

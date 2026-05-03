@@ -23,15 +23,15 @@ pub fn lower(e: &Expr) -> Result<Term, LowerError> {
         },
         Expr::App(f, args) => {
             let term_args: Result<Vec<_>, _> = args.iter().map(lower).collect();
-            Ok(Term::App(sym(f), term_args?))
+            Ok(Term::App(Box::new(Term::Sym(sym(f))), term_args?))
         }
         Expr::BinOp(op, l, r) => {
             let l = lower(l)?;
             let r = lower(r)?;
-            Ok(Term::App(sym(op.symbol()), vec![l, r]))
+            Ok(Term::App(Box::new(Term::Sym(sym(op.symbol()))), vec![l, r]))
         }
         Expr::UnaryOp(UnaryOp::Neg, e) => {
-            Ok(Term::App(sym("-"), vec![lower(e)?]))
+            Ok(Term::App(Box::new(Term::Sym(sym("-"))), vec![lower(e)?]))
         }
         Expr::Lambda(param, ty, body) => {
             let ty_term = lower(ty)?;
@@ -48,8 +48,10 @@ pub fn lower(e: &Expr) -> Result<Term, LowerError> {
 /// Lower a fact body, distinguishing declared constants from pattern variables.
 ///
 /// - Identifiers in `pvars` (bound by the outermost `∀`) → `Term::Var` (pattern wildcards).
-/// - Identifiers in `known` (declared with `let`) and not in `pvars` → `Term::App(name, [])` (constants).
+/// - Identifiers in `known` (declared with `let`) and not in `pvars` → `Term::Sym` (constants).
 /// - All other identifiers → `Term::Var` (implicit pattern wildcards).
+/// - Function application `f(args)` where `f` is in `pvars` or unknown →
+///   `App(Var(f), args)`, enabling higher-order pattern matching.
 ///
 /// `∀` sub-binders in the body add their bound variables to `pvars` for the recursive call.
 pub fn lower_fact_body(
@@ -66,7 +68,7 @@ fn lower_with(e: &Expr, pvars: &HashSet<String>, known: &HashSet<String>) -> Res
             if pvars.contains(s) || !known.contains(s) {
                 Ok(Term::Var(sym(s)))
             } else {
-                Ok(Term::App(sym(s), vec![]))
+                Ok(Term::Sym(sym(s)))
             }
         }
         Expr::Int(n) => match n.sign() {
@@ -75,21 +77,28 @@ fn lower_with(e: &Expr, pvars: &HashSet<String>, known: &HashSet<String>) -> Res
         },
         Expr::App(f, args) => {
             let term_args: Result<Vec<_>, _> = args.iter().map(|a| lower_with(a, pvars, known)).collect();
-            Ok(Term::App(sym(f), term_args?))
+            // Head is a pvar or unknown identifier → Var (wildcard head for higher-order matching).
+            // Head is a known constant and not a pvar → Sym (concrete, non-wildcard).
+            let head = if pvars.contains(f) || !known.contains(f) {
+                Term::Var(sym(f))
+            } else {
+                Term::Sym(sym(f))
+            };
+            Ok(Term::App(Box::new(head), term_args?))
         }
         Expr::BinOp(op, l, r) => {
             let l = lower_with(l, pvars, known)?;
             let r = lower_with(r, pvars, known)?;
-            Ok(Term::App(sym(op.symbol()), vec![l, r]))
+            Ok(Term::App(Box::new(Term::Sym(sym(op.symbol()))), vec![l, r]))
         }
         Expr::UnaryOp(UnaryOp::Neg, e) => {
-            Ok(Term::App(sym("-"), vec![lower_with(e, pvars, known)?]))
+            Ok(Term::App(Box::new(Term::Sym(sym("-"))), vec![lower_with(e, pvars, known)?]))
         }
         Expr::Lambda(param, ty, body) => {
             // The type annotation is lowered in the outer scope (param not yet bound).
             let ty_term = lower_with(ty, pvars, known)?;
             // The param is a bound variable inside the body: add it to pvars so it
-            // becomes Term::Var (a matchable name) rather than a 0-arity App constant.
+            // becomes Term::Var (a matchable name) rather than a Sym constant.
             let mut new_pvars = pvars.clone();
             new_pvars.insert(param.clone());
             let body_term = lower_with(body, &new_pvars, known)?;

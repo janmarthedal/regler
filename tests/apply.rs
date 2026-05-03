@@ -215,9 +215,9 @@ fn named_incomparable_fact_stored_but_no_rule() {
     use regler::kernel::term::Term;
     let a = Term::Var(sym("a"));
     let b = Term::Var(sym("b"));
-    let myf_ab = Term::App(sym("myf"), vec![a.clone(), b.clone()]);
-    let myf_ba = Term::App(sym("myf"), vec![b.clone(), a.clone()]);
-    let eq = Term::App(sym("="), vec![myf_ab, myf_ba]);
+    let myf_ab = Term::App(Box::new(Term::Sym(sym("myf"))), vec![a.clone(), b.clone()]);
+    let myf_ba = Term::App(Box::new(Term::Sym(sym("myf"))), vec![b.clone(), a.clone()]);
+    let eq = Term::App(Box::new(Term::Sym(sym("="))), vec![myf_ab, myf_ba]);
 
     let mut theory = Theory::new();
     theory.install_fact(&eq, Some(sym("myf_comm")), None);

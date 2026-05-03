@@ -2,6 +2,18 @@
 
 Per-version log of program changes. Versions match `Cargo.toml`.
 
+## 0.12.0
+
+Kernel refactor: higher-order application head enables higher-order pattern matching.
+
+- **`Term::App` head changed from `Symbol` to `Box<Term>`.** The application node `App(Box<Term>, Vec<Term>)` can now carry any term as its head, not only a symbol. This is the structural prerequisite for higher-order pattern matching (e.g. matching `D(f(x))` where `f` is a pattern variable).
+- **New `Term::Sym(Symbol)` variant.** Concrete named constants that are never pattern wildcards. The canonical term order is now `App < Sym < Var < Lam < Nat < Int < Rat`. All kernel modules updated accordingly.
+- **`lower` and `lower_fact_body` updated.** Function-application heads are lowered to `Term::Sym` when the head is a known constant, or `Term::Var` when it is an `∀`-bound variable or unknown identifier. This gives higher-order pattern facts (`∀ f. D(f(x)) = …`) a `Var`-headed `App` pattern that `pmatch` treats as a wildcard head.
+- **`pmatch` supports variable heads.** `App(Var(f), args)` in the pattern matches any `App(subj_head, args)` of the same arity, binding `f` to `subj_head`. Head and arguments are matched recursively.
+- **Occurs-check in `pmatch`.** When binding a free pattern variable, the candidate term is rejected if it contains any lambda-bound subject variable, preventing variable capture.
+- **`subst` recurses into the application head.** Substitution now walks into `App` heads as well as arguments, so higher-order substitution (`subst(App(Var(f), args), {f: g})`) works correctly.
+- **`kbo`, `theory`, `eval`, `print` all updated** to handle `Sym` and the new `App` structure consistently (weight, var-count, AC detection, printing, evaluation).
+
 ## 0.11.0
 
 Milestone 12: lambda expressions and beta reduction.

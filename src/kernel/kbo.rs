@@ -76,6 +76,7 @@ fn kbo_gt(s: &Term, t: &Term) -> bool {
     if ws < wt {
         return false;
     }
+    // Equal weights: use structural/precedence tiebreaker.
     match (s, t) {
         (Term::Var(_), _) | (_, Term::Var(_)) => false,
         (Term::App(f, sa), Term::App(g, ta)) if f == g && sa.len() == ta.len() => {
@@ -87,10 +88,14 @@ fn kbo_gt(s: &Term, t: &Term) -> bool {
             }
             false
         }
-        (Term::App(f, _), Term::App(g, _)) => prec_gt(f, g),
+        (Term::App(f, _), Term::App(g, _)) => kbo_gt(f, g),
         // App > everything else at same weight
         (Term::App(_, _), _) => true,
         (_, Term::App(_, _)) => false,
+        // Sym > Var (Var already handled above), Sym vs Sym uses precedence
+        (Term::Sym(f), Term::Sym(g)) => prec_gt(f, g),
+        (Term::Sym(_), _) => true,
+        (_, Term::Sym(_)) => false,
         // Lam vs Lam: compare bodies lexicographically
         (Term::Lam(_, _, sb), Term::Lam(_, _, tb)) => kbo_gt(sb, tb),
         // Lam > numeric literals at same weight
@@ -112,19 +117,22 @@ fn num_to_rat(t: &Term) -> BigRational {
 
 fn weight(t: &Term) -> u64 {
     match t {
-        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) => 1,
-        Term::App(_, args) => 1 + args.iter().map(weight).sum::<u64>(),
+        Term::Nat(_) | Term::Var(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => 1,
+        // App weight = weight(head) + sum(args); head is typically Sym (weight 1)
+        Term::App(head, args) => weight(head) + args.iter().map(weight).sum::<u64>(),
         Term::Lam(_, ty, body) => 1 + weight(ty) + weight(body),
     }
 }
 
 fn var_count(t: &Term, x: &Symbol) -> u64 {
     match t {
-        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => 0,
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => 0,
         Term::Var(s) => {
             if s == x { 1 } else { 0 }
         }
-        Term::App(_, args) => args.iter().map(|a| var_count(a, x)).sum(),
+        Term::App(head, args) => {
+            var_count(head, x) + args.iter().map(|a| var_count(a, x)).sum::<u64>()
+        }
         // x is not free in the body if it equals the bound variable.
         Term::Lam(p, ty, body) => {
             var_count(ty, x) + if p == x { 0 } else { var_count(body, x) }
@@ -134,11 +142,12 @@ fn var_count(t: &Term, x: &Symbol) -> u64 {
 
 fn collect_vars(t: &Term, out: &mut HashSet<Symbol>) {
     match t {
-        Term::Nat(_) | Term::Int(_) | Term::Rat(_) => {}
+        Term::Nat(_) | Term::Int(_) | Term::Rat(_) | Term::Sym(_) => {}
         Term::Var(s) => {
             out.insert(s.clone());
         }
-        Term::App(_, args) => {
+        Term::App(head, args) => {
+            collect_vars(head, out);
             for a in args {
                 collect_vars(a, out);
             }

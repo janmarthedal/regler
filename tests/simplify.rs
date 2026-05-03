@@ -17,10 +17,13 @@ fn lower_str(src: &str) -> Term {
 fn rule_from(eq_src: &str) -> Rule {
     let t = lower_str(eq_src);
     let (l, r) = match t {
-        Term::App(head, args) if head.as_ref() == "=" && args.len() == 2 => {
-            let mut it = args.into_iter();
-            (it.next().unwrap(), it.next().unwrap())
-        }
+        Term::App(head, args) if args.len() == 2 => match head.as_ref() {
+            Term::Sym(h) if h.as_ref() == "=" => {
+                let mut it = args.into_iter();
+                (it.next().unwrap(), it.next().unwrap())
+            }
+            _ => panic!("expected an equality, got {head:?}"),
+        },
         _ => panic!("expected an equality, got {t:?}"),
     };
     match orient(&l, &r) {
